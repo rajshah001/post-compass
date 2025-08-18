@@ -105,7 +105,11 @@ function updateRedditCounts() {
 async function getStoredModel() {
   return new Promise(resolve => {
     try {
-      chrome.storage.local.get(['pc_model'], data => resolve(data.pc_model));
+      if (chrome?.storage?.local) {
+        chrome.storage.local.get(['pc_model'], data => resolve(data.pc_model));
+      } else {
+        resolve(undefined);
+      }
     } catch (_) {
       resolve(undefined);
     }
@@ -115,7 +119,11 @@ async function getStoredModel() {
 async function setStoredModel(model) {
   return new Promise(resolve => {
     try {
-      chrome.storage.local.set({ pc_model: model }, () => resolve());
+      if (chrome?.storage?.local) {
+        chrome.storage.local.set({ pc_model: model }, () => resolve());
+      } else {
+        resolve();
+      }
     } catch (_) {
       resolve();
     }
@@ -125,10 +133,14 @@ async function setStoredModel(model) {
 async function loadHistory() {
   return new Promise(resolve => {
     try {
-      chrome.storage.local.get(['pc_history'], data => {
-        const list = Array.isArray(data.pc_history) ? data.pc_history : [];
-        resolve(list);
-      });
+      if (chrome?.storage?.local) {
+        chrome.storage.local.get(['pc_history'], data => {
+          const list = Array.isArray(data.pc_history) ? data.pc_history : [];
+          resolve(list);
+        });
+      } else {
+        resolve([]);
+      }
     } catch (_) {
       resolve([]);
     }
@@ -141,7 +153,11 @@ async function saveHistory(entry) {
   while (list.length > 50) list.pop();
   return new Promise(resolve => {
     try {
-      chrome.storage.local.set({ pc_history: list }, () => resolve());
+      if (chrome?.storage?.local) {
+        chrome.storage.local.set({ pc_history: list }, () => resolve());
+      } else {
+        resolve();
+      }
     } catch (_) {
       resolve();
     }
@@ -151,7 +167,11 @@ async function saveHistory(entry) {
 async function clearHistory() {
   return new Promise(resolve => {
     try {
-      chrome.storage.local.set({ pc_history: [] }, () => resolve());
+      if (chrome?.storage?.local) {
+        chrome.storage.local.set({ pc_history: [] }, () => resolve());
+      } else {
+        resolve();
+      }
     } catch (_) {
       resolve();
     }
@@ -217,11 +237,6 @@ async function initModels() {
 
 
 
-async function initHistory() {
-  const history = await loadHistory();
-  renderHistory(history);
-}
-
 // Initialize everything when DOM is ready
 async function initialize() {
   try {
@@ -286,7 +301,11 @@ function setupEventListeners() {
     copyTwitter.addEventListener('click', async () => {
       const t = twitterTextEl?.textContent?.trim();
       if (!t) return;
-      await navigator.clipboard.writeText(t);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(t);
+      } else {
+        console.warn('Clipboard API not available');
+      }
       copyTwitter.textContent = 'Copied!';
       setTimeout(() => (copyTwitter.textContent = 'Copy'), 1200);
     });
@@ -296,7 +315,11 @@ function setupEventListeners() {
     copyLinkedIn.addEventListener('click', async () => {
       const t = linkedinTextEl?.textContent?.trim();
       if (!t) return;
-      await navigator.clipboard.writeText(t);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(t);
+      } else {
+        console.warn('Clipboard API not available');
+      }
       copyLinkedIn.textContent = 'Copied!';
       setTimeout(() => (copyLinkedIn.textContent = 'Copy'), 1200);
     });
@@ -308,7 +331,11 @@ function setupEventListeners() {
       const body = redditBodyEl?.textContent?.trim();
       const content = title ? `${title}\n\n${body}` : body;
       if (!content) return;
-      await navigator.clipboard.writeText(content);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(content);
+      } else {
+        console.warn('Clipboard API not available');
+      }
       copyReddit.textContent = 'Copied!';
       setTimeout(() => (copyReddit.textContent = 'Copy'), 1200);
     });
@@ -319,7 +346,11 @@ function setupEventListeners() {
     openTwitter.addEventListener('click', async () => {
       const t = twitterTextEl?.textContent?.trim();
       if (!t) return;
-      try { await navigator.clipboard.writeText(t); } catch (_) {}
+      try { 
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(t);
+        }
+      } catch (_) {}
       const url = `https://x.com/intent/tweet?text=${encodeURIComponent(t)}`;
       window.open(url, '_blank');
     });
@@ -329,7 +360,11 @@ function setupEventListeners() {
     openLinkedIn.addEventListener('click', async () => {
       const t = linkedinTextEl?.textContent?.trim();
       if (!t) return;
-      try { await navigator.clipboard.writeText(t); } catch (_) {}
+      try { 
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(t);
+        }
+      } catch (_) {}
       const url = `https://www.linkedin.com/shareArticle?mini=true&summary=${encodeURIComponent(t)}`;
       window.open(url, '_blank');
     });
@@ -340,7 +375,11 @@ function setupEventListeners() {
       const title = redditTitleEl?.textContent?.trim();
       const body = redditBodyEl?.textContent?.trim();
       if (!title && !body) return;
-      try { await navigator.clipboard.writeText(title ? `${title}\n\n${body}` : body); } catch (_) {}
+      try { 
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(title ? `${title}\n\n${body}` : body);
+        }
+      } catch (_) {}
       const url = `https://www.reddit.com/submit?selftext=true&title=${encodeURIComponent(title)}&text=${encodeURIComponent(body)}`;
       window.open(url, '_blank');
     });

@@ -13,7 +13,7 @@
 
     sidebarFrame = document.createElement('iframe');
     sidebarFrame.id = SIDEBAR_ID;
-    sidebarFrame.src = chrome.runtime.getURL('sidebar.html');
+    sidebarFrame.src = chrome?.runtime?.getURL ? chrome.runtime.getURL('sidebar.html') : 'sidebar.html';
     sidebarFrame.style.cssText = `
       position: fixed;
       top: 0;
@@ -170,21 +170,28 @@
   }
 
   // Listen for messages from sidebar/background
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'fillTwitter') {
-      const success = fillTwitterComposer(message.text);
-      sendResponse({ success });
-    } else if (message.type === 'fillLinkedIn') {
-      fillLinkedInComposer(message.text);
-      sendResponse({ success: true });
-    } else if (message.type === 'fillReddit') {
-      const success = fillRedditComposer(message.title, message.body);
-      sendResponse({ success });
-    } else if (message.type === 'closeSidebar') {
-      removeSidebar();
-      sendResponse({ success: true });
-    }
-  });
+  if (chrome?.runtime?.onMessage) {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      try {
+        if (message.type === 'fillTwitter') {
+          const success = fillTwitterComposer(message.text);
+          sendResponse({ success });
+        } else if (message.type === 'fillLinkedIn') {
+          fillLinkedInComposer(message.text);
+          sendResponse({ success: true });
+        } else if (message.type === 'fillReddit') {
+          const success = fillRedditComposer(message.title, message.body);
+          sendResponse({ success });
+        } else if (message.type === 'closeSidebar') {
+          removeSidebar();
+          sendResponse({ success: true });
+        }
+      } catch (e) {
+        console.error('Content script message handler error:', e);
+        sendResponse({ success: false, error: e.message });
+      }
+    });
+  }
 
   createFAB();
 })();

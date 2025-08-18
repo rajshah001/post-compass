@@ -63,7 +63,11 @@ function updateRedditCounts() {
 async function getStoredModel() {
   return new Promise(resolve => {
     try {
-      chrome.storage.local.get(['pc_model'], data => resolve(data.pc_model));
+      if (chrome?.storage?.local) {
+        chrome.storage.local.get(['pc_model'], data => resolve(data.pc_model));
+      } else {
+        resolve(undefined);
+      }
     } catch (_) {
       resolve(undefined);
     }
@@ -73,7 +77,11 @@ async function getStoredModel() {
 async function setStoredModel(model) {
   return new Promise(resolve => {
     try {
-      chrome.storage.local.set({ pc_model: model }, () => resolve());
+      if (chrome?.storage?.local) {
+        chrome.storage.local.set({ pc_model: model }, () => resolve());
+      } else {
+        resolve();
+      }
     } catch (_) {
       resolve();
     }
@@ -83,10 +91,14 @@ async function setStoredModel(model) {
 async function loadHistory() {
   return new Promise(resolve => {
     try {
-      chrome.storage.local.get(['pc_history'], data => {
-        const list = Array.isArray(data.pc_history) ? data.pc_history : [];
-        resolve(list);
-      });
+      if (chrome?.storage?.local) {
+        chrome.storage.local.get(['pc_history'], data => {
+          const list = Array.isArray(data.pc_history) ? data.pc_history : [];
+          resolve(list);
+        });
+      } else {
+        resolve([]);
+      }
     } catch (_) {
       resolve([]);
     }
@@ -99,7 +111,11 @@ async function saveHistory(entry) {
   while (list.length > 50) list.pop();
   return new Promise(resolve => {
     try {
-      chrome.storage.local.set({ pc_history: list }, () => resolve());
+      if (chrome?.storage?.local) {
+        chrome.storage.local.set({ pc_history: list }, () => resolve());
+      } else {
+        resolve();
+      }
     } catch (_) {
       resolve();
     }
@@ -109,7 +125,11 @@ async function saveHistory(entry) {
 async function clearHistory() {
   return new Promise(resolve => {
     try {
-      chrome.storage.local.set({ pc_history: [] }, () => resolve());
+      if (chrome?.storage?.local) {
+        chrome.storage.local.set({ pc_history: [] }, () => resolve());
+      } else {
+        resolve();
+      }
     } catch (_) {
       resolve();
     }
@@ -218,7 +238,11 @@ clearHistoryBtn.addEventListener('click', async () => {
 copyTwitter.addEventListener('click', async () => {
   const t = twitterTextEl.textContent.trim();
   if (!t) return;
-  await navigator.clipboard.writeText(t);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    await navigator.clipboard.writeText(t);
+  } else {
+    console.warn('Clipboard API not available');
+  }
   copyTwitter.textContent = 'Copied!';
   setTimeout(() => (copyTwitter.textContent = 'Copy'), 1200);
 });
@@ -226,7 +250,11 @@ copyTwitter.addEventListener('click', async () => {
 copyLinkedIn.addEventListener('click', async () => {
   const t = linkedinTextEl.textContent.trim();
   if (!t) return;
-  await navigator.clipboard.writeText(t);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    await navigator.clipboard.writeText(t);
+  } else {
+    console.warn('Clipboard API not available');
+  }
   copyLinkedIn.textContent = 'Copied!';
   setTimeout(() => (copyLinkedIn.textContent = 'Copy'), 1200);
 });
@@ -236,7 +264,11 @@ copyReddit.addEventListener('click', async () => {
   const body = redditBodyEl.textContent.trim();
   const content = title ? `${title}\n\n${body}` : body;
   if (!content) return;
-  await navigator.clipboard.writeText(content);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    await navigator.clipboard.writeText(content);
+  } else {
+    console.warn('Clipboard API not available');
+  }
   copyReddit.textContent = 'Copied!';
   setTimeout(() => (copyReddit.textContent = 'Copy'), 1200);
 });
@@ -246,11 +278,17 @@ fillTwitter.addEventListener('click', async () => {
   const text = twitterTextEl.textContent.trim();
   if (!text) return;
   try {
-    await chrome.runtime.sendMessage({ type: 'fillTwitter', text });
-    fillTwitter.textContent = 'Filled!';
-    setTimeout(() => (fillTwitter.textContent = 'Fill X'), 1200);
+    if (chrome?.runtime?.sendMessage) {
+      await chrome.runtime.sendMessage({ type: 'fillTwitter', text });
+      fillTwitter.textContent = 'Filled!';
+      setTimeout(() => (fillTwitter.textContent = 'Fill X'), 1200);
+    } else {
+      console.warn('Chrome runtime not available');
+    }
   } catch (e) {
     console.error('Fill Twitter failed:', e);
+    fillTwitter.textContent = 'Failed';
+    setTimeout(() => (fillTwitter.textContent = 'Fill X'), 1200);
   }
 });
 
@@ -258,11 +296,17 @@ fillLinkedIn.addEventListener('click', async () => {
   const text = linkedinTextEl.textContent.trim();
   if (!text) return;
   try {
-    await chrome.runtime.sendMessage({ type: 'fillLinkedIn', text });
-    fillLinkedIn.textContent = 'Filled!';
-    setTimeout(() => (fillLinkedIn.textContent = 'Fill LinkedIn'), 1200);
+    if (chrome?.runtime?.sendMessage) {
+      await chrome.runtime.sendMessage({ type: 'fillLinkedIn', text });
+      fillLinkedIn.textContent = 'Filled!';
+      setTimeout(() => (fillLinkedIn.textContent = 'Fill LinkedIn'), 1200);
+    } else {
+      console.warn('Chrome runtime not available');
+    }
   } catch (e) {
     console.error('Fill LinkedIn failed:', e);
+    fillLinkedIn.textContent = 'Failed';
+    setTimeout(() => (fillLinkedIn.textContent = 'Fill LinkedIn'), 1200);
   }
 });
 
@@ -271,30 +315,44 @@ fillReddit.addEventListener('click', async () => {
   const body = redditBodyEl.textContent.trim();
   if (!title && !body) return;
   try {
-    await chrome.runtime.sendMessage({ type: 'fillReddit', title, body });
-    fillReddit.textContent = 'Filled!';
-    setTimeout(() => (fillReddit.textContent = 'Fill Reddit'), 1200);
+    if (chrome?.runtime?.sendMessage) {
+      await chrome.runtime.sendMessage({ type: 'fillReddit', title, body });
+      fillReddit.textContent = 'Filled!';
+      setTimeout(() => (fillReddit.textContent = 'Fill Reddit'), 1200);
+    } else {
+      console.warn('Chrome runtime not available');
+    }
   } catch (e) {
     console.error('Fill Reddit failed:', e);
+    fillReddit.textContent = 'Failed';
+    setTimeout(() => (fillReddit.textContent = 'Fill Reddit'), 1200);
   }
 });
 
 // Navigation handlers
 navTwitter.addEventListener('click', () => {
-  chrome.runtime.sendMessage({ type: 'navigate', url: 'https://x.com/compose/tweet' });
+  if (chrome?.runtime?.sendMessage) {
+    chrome.runtime.sendMessage({ type: 'navigate', url: 'https://x.com/compose/tweet' });
+  }
 });
 
 navLinkedIn.addEventListener('click', () => {
-  chrome.runtime.sendMessage({ type: 'navigate', url: 'https://www.linkedin.com/feed/' });
+  if (chrome?.runtime?.sendMessage) {
+    chrome.runtime.sendMessage({ type: 'navigate', url: 'https://www.linkedin.com/feed/' });
+  }
 });
 
 navReddit.addEventListener('click', () => {
-  chrome.runtime.sendMessage({ type: 'navigate', url: 'https://www.reddit.com/submit' });
+  if (chrome?.runtime?.sendMessage) {
+    chrome.runtime.sendMessage({ type: 'navigate', url: 'https://www.reddit.com/submit' });
+  }
 });
 
 // Close sidebar
 sidebarClose.addEventListener('click', () => {
-  chrome.runtime.sendMessage({ type: 'closeSidebar' });
+  if (chrome?.runtime?.sendMessage) {
+    chrome.runtime.sendMessage({ type: 'closeSidebar' });
+  }
 });
 
 findBtn.addEventListener('click', async () => {

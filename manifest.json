@@ -6,7 +6,7 @@
   "action": {
     "default_popup": "popup.html"
   },
-  "permissions": ["storage", "activeTab", "scripting"],
+  "permissions": ["storage", "activeTab", "scripting", "clipboardWrite"],
   "host_permissions": [
     "https://text.pollinations.ai/*",
     "https://www.linkedin.com/*",
