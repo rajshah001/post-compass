@@ -329,22 +329,34 @@ fillReddit.addEventListener('click', async () => {
   }
 });
 
-// Navigation handlers
+// Navigation handlers - open URLs in current tab
 navTwitter.addEventListener('click', () => {
-  if (chrome?.runtime?.sendMessage) {
-    chrome.runtime.sendMessage({ type: 'navigate', url: 'https://x.com/compose/tweet' });
+  if (chrome?.tabs?.query && chrome?.tabs?.update) {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs.length > 0) {
+        chrome.tabs.update(tabs[0].id, { url: 'https://x.com/compose/tweet' });
+      }
+    });
   }
 });
 
 navLinkedIn.addEventListener('click', () => {
-  if (chrome?.runtime?.sendMessage) {
-    chrome.runtime.sendMessage({ type: 'navigate', url: 'https://www.linkedin.com/feed/' });
+  if (chrome?.tabs?.query && chrome?.tabs?.update) {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs.length > 0) {
+        chrome.tabs.update(tabs[0].id, { url: 'https://www.linkedin.com/feed/' });
+      }
+    });
   }
 });
 
 navReddit.addEventListener('click', () => {
-  if (chrome?.runtime?.sendMessage) {
-    chrome.runtime.sendMessage({ type: 'navigate', url: 'https://www.reddit.com/submit' });
+  if (chrome?.tabs?.query && chrome?.tabs?.update) {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs.length > 0) {
+        chrome.tabs.update(tabs[0].id, { url: 'https://www.reddit.com/submit' });
+      }
+    });
   }
 });
 
