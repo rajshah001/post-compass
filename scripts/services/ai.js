@@ -2,13 +2,14 @@ export const DEFAULTS = {
   baseUrl: 'https://text.pollinations.ai',
   defaultModel: 'gpt-5-nano',
   temperature: 0.5,
-  maxTokens: 700
+  maxTokens: 900
 };
 
 export const PLATFORM_LIMITS = {
   twitter: 256,
   linkedin: 3000,
-  reddit: 40000
+  redditTitle: 300,
+  redditBody: 40000
 };
 
 function buildSystemPrompt() {
@@ -35,9 +36,9 @@ function buildSystemPrompt() {
     '- Encourage comments with a thoughtful question.\n' +
     '\n' +
     'Reddit:\n' +
-    '- Max length 40000 characters. Community-first, conversational, and specific.\n' +
-    '- Provide full context and avoid self-promotion; no hashtags.\n' +
-    '- Keep formatting simple (basic markdown acceptable), no clickbait.\n' +
+    '- Title max length 300 characters. Make it descriptive, specific, and honest; avoid clickbait.\n' +
+    '- Body max length 40000 characters. Provide context, avoid self-promotion; no hashtags.\n' +
+    '- Write in a community-first, conversational tone; simple formatting (basic markdown OK).\n' +
     '\n' +
     'Return outputs that are platform-optimized and adhere to the above constraints.'
   );
@@ -49,9 +50,11 @@ function buildUserPrompt(rawText) {
     'Keep meaning intact and tailor for each platform\'s algorithm and norms.\n' +
     `Original text:\n${rawText}\n\n` +
     'Output STRICT JSON with keys "twitter", "linkedin", "reddit".\n' +
-    'Each key maps to an object: { "text": string }.\n' +
+    '- twitter: { "text": string }\n' +
+    '- linkedin: { "text": string }\n' +
+    '- reddit: { "title": string, "body": string }\n' +
     'No extra commentary. Example format:\n' +
-    '{"twitter": {"text": "..."}, "linkedin": {"text": "..."}, "reddit": {"text": "..."}}'
+    '{"twitter": {"text": "..."}, "linkedin": {"text": "..."}, "reddit": {"title": "...", "body": "..."}}'
   );
 }
 
@@ -64,11 +67,29 @@ function truncateToLimit(text, limit) {
   return trimmed + '…';
 }
 
+function splitIntoRedditTitleBody(text) {
+  const raw = (text || '').trim();
+  if (!raw) return { title: '', body: '' };
+  const firstLine = raw.split(/\n|[.!?]/)[0].trim();
+  let title = firstLine || raw.slice(0, 120);
+  let body = raw;
+  if (raw.startsWith(firstLine)) {
+    body = raw.slice(firstLine.length).trim();
+  }
+  title = truncateToLimit(title, PLATFORM_LIMITS.redditTitle);
+  body = truncateToLimit(body, PLATFORM_LIMITS.redditBody);
+  return { title, body };
+}
+
 function normalizeDrafts(drafts) {
+  const twitterText = (drafts?.twitter?.text || '').trim();
+  const linkedinText = (drafts?.linkedin?.text || '').trim();
+  const redditTitle = (drafts?.reddit?.title || '').trim();
+  const redditBody = (drafts?.reddit?.body || '').trim();
   return {
-    twitter: { text: (drafts?.twitter?.text || '').trim() },
-    linkedin: { text: (drafts?.linkedin?.text || '').trim() },
-    reddit: { text: (drafts?.reddit?.text || '').trim() }
+    twitter: { text: twitterText },
+    linkedin: { text: linkedinText },
+    reddit: { title: redditTitle, body: redditBody }
   };
 }
 
@@ -95,10 +116,16 @@ async function callOpenAICompatible(baseUrl, model, userPrompt, systemPrompt, ap
 
   try {
     const data = JSON.parse(content);
-    return normalizeDrafts(data);
+    const normalized = normalizeDrafts(data);
+    // If reddit fields missing, derive from any text fallback
+    if (!normalized.reddit.title && !normalized.reddit.body) {
+      const derived = splitIntoRedditTitleBody(normalized.twitter.text || normalized.linkedin.text || content);
+      normalized.reddit = derived;
+    }
+    return normalized;
   } catch (_) {
-    const shared = content;
-    return normalizeDrafts({ twitter: { text: shared }, linkedin: { text: shared }, reddit: { text: shared } });
+    const derived = splitIntoRedditTitleBody(content);
+    return normalizeDrafts({ twitter: { text: content }, linkedin: { text: content }, reddit: derived });
   }
 }
 
@@ -107,7 +134,8 @@ async function callSimpleTextEndpoint(baseUrl, prompt) {
   const res = await fetch(url, { method: 'GET' });
   if (!res.ok) throw new Error(`Text endpoint failed: ${res.status}`);
   const text = (await res.text()).trim();
-  return normalizeDrafts({ twitter: { text }, linkedin: { text }, reddit: { text } });
+  const reddit = splitIntoRedditTitleBody(text);
+  return normalizeDrafts({ twitter: { text }, linkedin: { text }, reddit });
 }
 
 export async function fetchAvailableModels() {
@@ -146,7 +174,8 @@ export async function generatePlatformDrafts(rawText, opts = {}) {
 
   drafts.twitter.text = truncateToLimit(drafts.twitter.text, PLATFORM_LIMITS.twitter);
   drafts.linkedin.text = truncateToLimit(drafts.linkedin.text, PLATFORM_LIMITS.linkedin);
-  drafts.reddit.text = truncateToLimit(drafts.reddit.text, PLATFORM_LIMITS.reddit);
+  drafts.reddit.title = truncateToLimit(drafts.reddit.title, PLATFORM_LIMITS.redditTitle);
+  drafts.reddit.body = truncateToLimit(drafts.reddit.body, PLATFORM_LIMITS.redditBody);
 
   return drafts;
 }

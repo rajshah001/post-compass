@@ -8,10 +8,11 @@ const rewriteBtn = document.getElementById('rewriteBtn');
 const platformDrafts = document.getElementById('platformDrafts');
 const twitterTextEl = document.getElementById('twitterText');
 const linkedinTextEl = document.getElementById('linkedinText');
-const redditTextEl = document.getElementById('redditText');
+const redditTitleEl = document.getElementById('redditTitle');
+const redditBodyEl = document.getElementById('redditBody');
 const twitterCount = document.getElementById('twitterCount');
 const linkedinCount = document.getElementById('linkedinCount');
-const redditCount = document.getElementById('redditCount');
+const redditCounts = document.getElementById('redditCounts');
 
 const copyTwitter = document.getElementById('copyTwitter');
 const copyLinkedIn = document.getElementById('copyLinkedIn');
@@ -23,6 +24,10 @@ const openReddit = document.getElementById('openReddit');
 const findBtn = document.getElementById('findBtn');
 const suggestionsSection = document.getElementById('suggestionsSection');
 const suggestionsList = document.getElementById('suggestionsList');
+
+const historySection = document.getElementById('historySection');
+const historyList = document.getElementById('historyList');
+const clearHistoryBtn = document.getElementById('clearHistory');
 
 function setLoading(button, isLoading) {
   if (isLoading) {
@@ -39,6 +44,13 @@ function updateCounter(el, countEl, limit) {
   const len = (el.textContent || '').length;
   countEl.textContent = `${len}/${limit}`;
   countEl.style.color = len > limit ? '#dc2626' : '';
+}
+
+function updateRedditCounts() {
+  const titleLen = (redditTitleEl.textContent || '').length;
+  const bodyLen = (redditBodyEl.textContent || '').length;
+  redditCounts.textContent = `title ${titleLen}/${PLATFORM_LIMITS.redditTitle} • body ${bodyLen}/${PLATFORM_LIMITS.redditBody}`;
+  redditCounts.style.color = (titleLen > PLATFORM_LIMITS.redditTitle || bodyLen > PLATFORM_LIMITS.redditBody) ? '#dc2626' : '';
 }
 
 async function getStoredModel() {
@@ -59,6 +71,75 @@ async function setStoredModel(model) {
       resolve();
     }
   });
+}
+
+async function loadHistory() {
+  return new Promise(resolve => {
+    try {
+      chrome.storage.local.get(['pc_history'], data => {
+        const list = Array.isArray(data.pc_history) ? data.pc_history : [];
+        resolve(list);
+      });
+    } catch (_) {
+      resolve([]);
+    }
+  });
+}
+
+async function saveHistory(entry) {
+  const list = await loadHistory();
+  list.unshift(entry);
+  while (list.length > 50) list.pop();
+  return new Promise(resolve => {
+    try {
+      chrome.storage.local.set({ pc_history: list }, () => resolve());
+    } catch (_) {
+      resolve();
+    }
+  });
+}
+
+async function clearHistory() {
+  return new Promise(resolve => {
+    try {
+      chrome.storage.local.set({ pc_history: [] }, () => resolve());
+    } catch (_) {
+      resolve();
+    }
+  });
+}
+
+function renderHistory(items) {
+  historyList.innerHTML = '';
+  if (!items.length) {
+    historySection.classList.add('hidden');
+    return;
+  }
+  for (const item of items) {
+    const li = document.createElement('li');
+    const date = new Date(item.timestamp).toLocaleString();
+    li.innerHTML = `
+      <div style="font-size:12px;" class="muted">${date} • ${item.model}</div>
+      <div style="margin-top:4px; white-space:pre-wrap;">${item.raw}</div>
+      <div style="margin-top:6px;">
+        <a href="#" data-action="restore" class="muted" style="font-size:12px;">Restore drafts</a>
+      </div>
+    `;
+    li.querySelector('[data-action="restore"]').addEventListener('click', (e) => {
+      e.preventDefault();
+      thoughtInput.value = item.raw;
+      twitterTextEl.textContent = item.drafts.twitter.text;
+      linkedinTextEl.textContent = item.drafts.linkedin.text;
+      redditTitleEl.textContent = item.drafts.reddit.title;
+      redditBodyEl.textContent = item.drafts.reddit.body;
+      updateCounter(twitterTextEl, twitterCount, PLATFORM_LIMITS.twitter);
+      updateCounter(linkedinTextEl, linkedinCount, PLATFORM_LIMITS.linkedin);
+      updateRedditCounts();
+      platformDrafts.classList.remove('hidden');
+    });
+    historyList.appendChild(li);
+  }
+  historySection.classList.remove('hidden');
 }
 
 async function initModels() {
@@ -86,19 +167,36 @@ rewriteBtn.addEventListener('click', async () => {
 
     twitterTextEl.textContent = drafts.twitter.text || '';
     linkedinTextEl.textContent = drafts.linkedin.text || '';
-    redditTextEl.textContent = drafts.reddit.text || '';
+    redditTitleEl.textContent = drafts.reddit.title || '';
+    redditBodyEl.textContent = drafts.reddit.body || '';
 
     updateCounter(twitterTextEl, twitterCount, PLATFORM_LIMITS.twitter);
     updateCounter(linkedinTextEl, linkedinCount, PLATFORM_LIMITS.linkedin);
-    updateCounter(redditTextEl, redditCount, PLATFORM_LIMITS.reddit);
+    updateRedditCounts();
 
     platformDrafts.classList.remove('hidden');
+
+    await saveHistory({
+      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      timestamp: Date.now(),
+      model,
+      raw,
+      drafts
+    });
+
+    const history = await loadHistory();
+    renderHistory(history);
   } catch (err) {
     console.error('Rewrite failed', err);
     platformDrafts.classList.add('hidden');
   } finally {
     setLoading(rewriteBtn, false);
   }
+});
+
+clearHistoryBtn.addEventListener('click', async () => {
+  await clearHistory();
+  renderHistory([]);
 });
 
 copyTwitter.addEventListener('click', async () => {
@@ -118,9 +216,11 @@ copyLinkedIn.addEventListener('click', async () => {
 });
 
 copyReddit.addEventListener('click', async () => {
-  const t = redditTextEl.textContent.trim();
-  if (!t) return;
-  await navigator.clipboard.writeText(t);
+  const title = redditTitleEl.textContent.trim();
+  const body = redditBodyEl.textContent.trim();
+  const content = title ? `${title}\n\n${body}` : body;
+  if (!content) return;
+  await navigator.clipboard.writeText(content);
   copyReddit.textContent = 'Copied!';
   setTimeout(() => (copyReddit.textContent = 'Copy'), 1200);
 });
@@ -137,24 +237,21 @@ openLinkedIn.addEventListener('click', async () => {
   const t = linkedinTextEl.textContent.trim();
   if (!t) return;
   try { await navigator.clipboard.writeText(t); } catch (_) {}
-  // Best-effort: legacy endpoint with summary param; clipboard has full text for quick paste if needed
   const url = `https://www.linkedin.com/shareArticle?mini=true&summary=${encodeURIComponent(t)}`;
   window.open(url, '_blank');
 });
 
 openReddit.addEventListener('click', async () => {
-  const t = redditTextEl.textContent.trim();
-  if (!t) return;
-  try { await navigator.clipboard.writeText(t); } catch (_) {}
-  // Derive a short title from first sentence or first 80 chars
-  const firstLine = t.split(/\n|[.!?]/)[0].trim();
-  const title = (firstLine || t).slice(0, 80);
-  const url = `https://www.reddit.com/submit?selftext=true&title=${encodeURIComponent(title)}&text=${encodeURIComponent(t)}`;
+  const title = redditTitleEl.textContent.trim();
+  const body = redditBodyEl.textContent.trim();
+  if (!title && !body) return;
+  try { await navigator.clipboard.writeText(title ? `${title}\n\n${body}` : body); } catch (_) {}
+  const url = `https://www.reddit.com/submit?selftext=true&title=${encodeURIComponent(title)}&text=${encodeURIComponent(body)}`;
   window.open(url, '_blank');
 });
 
 findBtn.addEventListener('click', async () => {
-  const combined = [twitterTextEl.textContent, linkedinTextEl.textContent, redditTextEl.textContent]
+  const combined = [twitterTextEl.textContent, linkedinTextEl.textContent, redditTitleEl.textContent, redditBodyEl.textContent]
     .filter(Boolean)
     .join(' ')
     .trim() || thoughtInput.value.trim();
@@ -184,7 +281,13 @@ modelSelect.addEventListener('change', async () => {
   await setStoredModel(m);
 });
 
+async function initHistory() {
+  const history = await loadHistory();
+  renderHistory(history);
+}
+
 // Initialize
 initModels();
+initHistory();
 
 

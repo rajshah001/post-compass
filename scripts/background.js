@@ -5,7 +5,7 @@ chrome.runtime.onInstalled.addListener(() => {
   console.log('Post Compass installed');
 });
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     if (message?.type === 'rewrite') {
       try {
@@ -21,6 +21,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       try {
         const suggestions = suggestCommunities(message.text || '');
         sendResponse({ ok: true, data: suggestions });
+      } catch (e) {
+        sendResponse({ ok: false, error: String(e?.message || e) });
+      }
+      return;
+    }
+
+    if (message?.type === 'openPopup') {
+      try {
+        const url = chrome.runtime.getURL('popup.html');
+        await chrome.tabs.create({ url });
+        sendResponse({ ok: true });
       } catch (e) {
         sendResponse({ ok: false, error: String(e?.message || e) });
       }

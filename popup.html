@@ -50,9 +50,13 @@
         <div class="platform-block" id="redditCard">
           <div class="platform-header">
             <span><strong>Reddit</strong></span>
-            <span class="char-count" id="redditCount">0/40000</span>
+            <span class="char-count" id="redditCounts">title 0/300 • body 0/40000</span>
           </div>
-          <div class="text" id="redditText"></div>
+          <div class="text">
+            <div><strong>Title:</strong> <span id="redditTitle"></span></div>
+            <div style="margin-top:6px;"><strong>Body:</strong></div>
+            <div id="redditBody" class="text"></div>
+          </div>
           <div class="actions">
             <button id="openReddit" class="ghost">Open Reddit</button>
             <button id="copyReddit" class="ghost">Copy</button>
@@ -65,6 +69,14 @@
       <div id="suggestionsSection" class="card hidden">
         <div class="section-title">Suggested communities</div>
         <ul id="suggestionsList"></ul>
+      </div>
+
+      <div id="historySection" class="card hidden">
+        <div class="section-title">History</div>
+        <ul id="historyList"></ul>
+        <div class="actions">
+          <button id="clearHistory" class="ghost">Clear</button>
+        </div>
       </div>
     </main>
 

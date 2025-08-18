@@ -15,7 +15,7 @@ html, body {
 
 body {
   width: 350px;
-  min-height: 520px;
+  min-height: 600px;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
   background: var(--bg);
   color: var(--fg);
@@ -128,12 +128,28 @@ button.ghost {
   display: flex;
   justify-content: flex-end;
   margin-top: 8px;
+  gap: 6px;
 }
 
 .footer {
   padding: 10px 14px 14px 14px;
   color: var(--muted);
   font-size: 12px;
+}
+
+#historyList {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+#historyList li {
+  border-top: 1px solid var(--border);
+  padding: 8px 0;
+}
+
+#historyList li:first-child {
+  border-top: none;
 }
 
 .muted { color: var(--muted); }
