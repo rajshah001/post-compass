@@ -1,6 +1,6 @@
 export const DEFAULTS = {
   baseUrl: 'https://text.pollinations.ai',
-  defaultModel: 'gpt-4o-mini-uncensored',
+  defaultModel: 'gpt-5-nano',
   temperature: 0.5,
   maxTokens: 700
 };
@@ -58,7 +58,6 @@ function buildUserPrompt(rawText) {
 function truncateToLimit(text, limit) {
   if (!text) return '';
   if (text.length <= limit) return text;
-  // Prefer not to break words if possible
   const slice = text.slice(0, Math.max(0, limit - 1));
   const lastSpace = slice.lastIndexOf(' ');
   const trimmed = lastSpace > 0 ? slice.slice(0, lastSpace) : slice;
@@ -98,7 +97,6 @@ async function callOpenAICompatible(baseUrl, model, userPrompt, systemPrompt, ap
     const data = JSON.parse(content);
     return normalizeDrafts(data);
   } catch (_) {
-    // If not valid JSON, fallback by mapping the content to all platforms
     const shared = content;
     return normalizeDrafts({ twitter: { text: shared }, linkedin: { text: shared }, reddit: { text: shared } });
   }
@@ -116,8 +114,14 @@ export async function fetchAvailableModels() {
   try {
     const res = await fetch(`${DEFAULTS.baseUrl.replace(/\/$/, '')}/models`);
     if (!res.ok) throw new Error(`models failed: ${res.status}`);
-    const models = await res.json();
-    if (Array.isArray(models) && models.length) return models;
+    const data = await res.json();
+    if (Array.isArray(data)) {
+      const names = data
+        .filter(m => Array.isArray(m.output_modalities) ? m.output_modalities.includes('text') : true)
+        .map(m => m?.name || m?.aliases || m?.original_name)
+        .filter(Boolean);
+      if (names.length) return names;
+    }
     return [DEFAULTS.defaultModel];
   } catch (e) {
     console.warn('fetchAvailableModels error:', e);
@@ -128,7 +132,7 @@ export async function fetchAvailableModels() {
 export async function generatePlatformDrafts(rawText, opts = {}) {
   const baseUrl = opts.baseUrl || DEFAULTS.baseUrl;
   const model = opts.model || DEFAULTS.defaultModel;
-  const apiKey = opts.apiKey || undefined; // Pollinations typically does not require a key
+  const apiKey = opts.apiKey || undefined;
 
   const systemPrompt = buildSystemPrompt();
   const userPrompt = buildUserPrompt(rawText);
@@ -140,7 +144,6 @@ export async function generatePlatformDrafts(rawText, opts = {}) {
     drafts = await callSimpleTextEndpoint(baseUrl, `${systemPrompt}\n\n${userPrompt}\n\nReturn only text.`);
   }
 
-  // Enforce character limits post-generation
   drafts.twitter.text = truncateToLimit(drafts.twitter.text, PLATFORM_LIMITS.twitter);
   drafts.linkedin.text = truncateToLimit(drafts.linkedin.text, PLATFORM_LIMITS.linkedin);
   drafts.reddit.text = truncateToLimit(drafts.reddit.text, PLATFORM_LIMITS.reddit);
