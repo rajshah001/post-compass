@@ -7,6 +7,67 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 });
 
+// Enhanced fill request handler that checks URL and navigates if needed
+async function handleFillRequest(message, tabId) {
+  try {
+    // Get current tab info
+    const tab = await chrome.tabs.get(tabId);
+    const currentUrl = tab.url;
+    
+    let targetUrl;
+    let requiredDomains;
+    
+    // Determine target URL and required domains based on message type
+    if (message.type === 'fillTwitter') {
+      targetUrl = 'https://x.com/compose/tweet';
+      requiredDomains = ['x.com', 'twitter.com'];
+    } else if (message.type === 'fillLinkedIn') {
+      targetUrl = 'https://www.linkedin.com/feed/';
+      requiredDomains = ['linkedin.com'];
+    } else if (message.type === 'fillReddit') {
+      targetUrl = 'https://www.reddit.com/submit';
+      requiredDomains = ['reddit.com'];
+    }
+    
+    // Check if we're already on the target platform
+    const isOnTargetPlatform = requiredDomains.some(domain => 
+      currentUrl.includes(domain)
+    );
+    
+    if (!isOnTargetPlatform) {
+      // Navigate to target URL first
+      await chrome.tabs.update(tabId, { url: targetUrl });
+      
+      // Wait for page to load before filling
+      await new Promise(resolve => {
+        const listener = (updatedTabId, changeInfo) => {
+          if (updatedTabId === tabId && changeInfo.status === 'complete') {
+            chrome.tabs.onUpdated.removeListener(listener);
+            resolve();
+          }
+        };
+        chrome.tabs.onUpdated.addListener(listener);
+        
+        // Fallback timeout
+        setTimeout(resolve, 3000);
+      });
+    }
+    
+    // Now try to fill the content
+    try {
+      await chrome.tabs.sendMessage(tabId, {
+        ...message,
+        showToast: true // Add flag to show toast message
+      });
+    } catch (e) {
+      console.error('Failed to send message to content script:', e);
+    }
+    
+  } catch (e) {
+    console.error('HandleFillRequest error:', e);
+  }
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const handleMessage = async () => {
     try {
@@ -31,9 +92,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
 
       if (message?.type === 'fillTwitter' || message?.type === 'fillLinkedIn' || message?.type === 'fillReddit') {
-        // Forward message to content script
-        const response = await chrome.tabs.sendMessage(sender.tab.id, message);
-        sendResponse({ ok: true, data: response });
+        await handleFillRequest(message, sender.tab.id);
+        sendResponse({ ok: true });
         return;
       }
 

@@ -3,6 +3,57 @@
   const isTarget = HOSTS.some(h => location.hostname.endsWith(h));
   if (!isTarget) return;
 
+  // Toast notification function
+  function showToast(message, type = 'success') {
+    // Remove any existing toast
+    const existingToast = document.getElementById('post-compass-toast');
+    if (existingToast) {
+      existingToast.remove();
+    }
+
+    const toast = document.createElement('div');
+    toast.id = 'post-compass-toast';
+    toast.textContent = message;
+    
+    // Styling
+    Object.assign(toast.style, {
+      position: 'fixed',
+      top: '20px',
+      right: '20px',
+      backgroundColor: type === 'success' ? '#10b981' : '#ef4444',
+      color: '#ffffff',
+      padding: '12px 20px',
+      borderRadius: '8px',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      fontSize: '14px',
+      fontWeight: '500',
+      zIndex: '10000',
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+      opacity: '0',
+      transform: 'translateY(-10px)',
+      transition: 'all 0.3s ease'
+    });
+
+    document.body.appendChild(toast);
+
+    // Animate in
+    setTimeout(() => {
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateY(0)';
+    }, 100);
+
+    // Remove after 3 seconds
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(-10px)';
+      setTimeout(() => {
+        if (toast.parentNode) {
+          toast.parentNode.removeChild(toast);
+        }
+      }, 300);
+    }, 3000);
+  }
+
   // DOM injection functions
   function fillTwitterComposer(text) {
     const selectors = [
@@ -100,18 +151,42 @@
   if (chrome?.runtime?.onMessage) {
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       try {
+        let success = false;
+        let platform = '';
+        
         if (message.type === 'fillTwitter') {
-          const success = fillTwitterComposer(message.text);
-          sendResponse({ success });
+          success = fillTwitterComposer(message.text);
+          platform = 'X (Twitter)';
         } else if (message.type === 'fillLinkedIn') {
-          fillLinkedInComposer(message.text);
+          // LinkedIn needs a slight delay for the composer to appear
+          setTimeout(() => {
+            fillLinkedInComposer(message.text);
+            if (message.showToast) {
+              showToast('LinkedIn content has been filled! ✨');
+            }
+          }, 800);
           sendResponse({ success: true });
+          return;
         } else if (message.type === 'fillReddit') {
-          const success = fillRedditComposer(message.title, message.body);
-          sendResponse({ success });
+          success = fillRedditComposer(message.title, message.body);
+          platform = 'Reddit';
         }
+        
+        // Show toast notification if requested
+        if (message.showToast && platform) {
+          if (success) {
+            showToast(`${platform} content has been filled! ✨`);
+          } else {
+            showToast(`Failed to fill ${platform} content. Please try manually.`, 'error');
+          }
+        }
+        
+        sendResponse({ success });
       } catch (e) {
         console.error('Content script message handler error:', e);
+        if (message.showToast) {
+          showToast('Error filling content. Please try again.', 'error');
+        }
         sendResponse({ success: false, error: e.message });
       }
     });
