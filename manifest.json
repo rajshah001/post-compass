@@ -9,7 +9,7 @@
   "side_panel": {
     "default_path": "sidebar.html"
   },
-  "permissions": ["storage", "activeTab", "scripting", "clipboardWrite", "sidePanel", "tabs"],
+  "permissions": ["storage", "activeTab", "scripting", "clipboardWrite", "sidePanel", "tabs", "notifications"],
   "host_permissions": [
     "https://text.pollinations.ai/*",
     "https://www.linkedin.com/*",

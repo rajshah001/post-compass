@@ -7,65 +7,52 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 });
 
-// Enhanced fill request handler that checks URL and navigates if needed
-async function handleFillRequest(message, tabId) {
-  try {
-    // Get current tab info
-    const tab = await chrome.tabs.get(tabId);
-    const currentUrl = tab.url;
-    
-    let targetUrl;
-    let requiredDomains;
-    
-    // Determine target URL and required domains based on message type
-    if (message.type === 'fillTwitter') {
-      targetUrl = 'https://x.com/compose/tweet';
-      requiredDomains = ['x.com', 'twitter.com'];
-    } else if (message.type === 'fillLinkedIn') {
-      targetUrl = 'https://www.linkedin.com/feed/';
-      requiredDomains = ['linkedin.com'];
-    } else if (message.type === 'fillReddit') {
-      targetUrl = 'https://www.reddit.com/submit';
-      requiredDomains = ['reddit.com'];
-    }
-    
-    // Check if we're already on the target platform
-    const isOnTargetPlatform = requiredDomains.some(domain => 
-      currentUrl.includes(domain)
-    );
-    
-    if (!isOnTargetPlatform) {
-      // Navigate to target URL first
-      await chrome.tabs.update(tabId, { url: targetUrl });
-      
-      // Wait for page to load before filling
-      await new Promise(resolve => {
-        const listener = (updatedTabId, changeInfo) => {
-          if (updatedTabId === tabId && changeInfo.status === 'complete') {
-            chrome.tabs.onUpdated.removeListener(listener);
-            resolve();
-          }
-        };
-        chrome.tabs.onUpdated.addListener(listener);
-        
-        // Fallback timeout
-        setTimeout(resolve, 3000);
-      });
-    }
-    
-    // Now try to fill the content
-    try {
-      await chrome.tabs.sendMessage(tabId, {
-        ...message,
-        showToast: true // Add flag to show toast message
-      });
-    } catch (e) {
-      console.error('Failed to send message to content script:', e);
-    }
-    
-  } catch (e) {
-    console.error('HandleFillRequest error:', e);
+// Platform URLs for navigation
+const PLATFORM_URLS = {
+  twitter: 'https://x.com/compose/tweet',
+  linkedin: 'https://www.linkedin.com/feed/',
+  reddit: 'https://www.reddit.com/submit'
+};
+
+// Check if current tab is on the target platform
+function isOnPlatform(url, platform) {
+  const urlObj = new URL(url);
+  const hostname = urlObj.hostname;
+  
+  switch(platform) {
+    case 'twitter':
+      return hostname.includes('x.com') || hostname.includes('twitter.com');
+    case 'linkedin':
+      return hostname.includes('linkedin.com');
+    case 'reddit':
+      return hostname.includes('reddit.com');
+    default:
+      return false;
   }
+}
+
+// Wait for tab to complete loading
+function waitForTabLoad(tabId) {
+  return new Promise((resolve) => {
+    const listener = (updatedTabId, changeInfo) => {
+      if (updatedTabId === tabId && changeInfo.status === 'complete') {
+        chrome.tabs.onUpdated.removeListener(listener);
+        resolve();
+      }
+    };
+    chrome.tabs.onUpdated.addListener(listener);
+  });
+}
+
+// Show notification
+function showNotification(message) {
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: chrome.runtime.getURL('icon.png'),
+    title: 'Post Compass',
+    message: message,
+    priority: 2
+  });
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -83,17 +70,65 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
 
-
-
-      if (message?.type === 'navigate') {
-        await chrome.tabs.update(sender.tab.id, { url: message.url });
-        sendResponse({ ok: true });
-        return;
-      }
-
+      // Handle fill requests with navigation
       if (message?.type === 'fillTwitter' || message?.type === 'fillLinkedIn' || message?.type === 'fillReddit') {
-        await handleFillRequest(message, sender.tab.id);
-        sendResponse({ ok: true });
+        const platform = message.type.replace('fill', '').toLowerCase();
+        
+        // Get the current active tab
+        const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        
+        if (!activeTab) {
+          sendResponse({ ok: false, error: 'No active tab found' });
+          return;
+        }
+        
+        // Check if we're already on the platform
+        const onPlatform = isOnPlatform(activeTab.url, platform);
+        
+        if (!onPlatform) {
+          // Navigate to the platform
+          await chrome.tabs.update(activeTab.id, { url: PLATFORM_URLS[platform] });
+          // Wait for the page to load
+          await waitForTabLoad(activeTab.id);
+          // Give the page a moment to fully render
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+        
+        // Now inject the content
+        try {
+          const response = await chrome.tabs.sendMessage(activeTab.id, message);
+          
+          if (response?.success) {
+            // Show success notification
+            let platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
+            if (platform === 'twitter') platformName = 'X/Twitter';
+            showNotification(`Content has been filled on ${platformName}. Please review before posting.`);
+          } else {
+            showNotification(`Could not fill content. Please try again.`);
+          }
+          
+          sendResponse({ ok: true, data: response });
+        } catch (e) {
+          // If content script isn't ready, inject it
+          await chrome.scripting.executeScript({
+            target: { tabId: activeTab.id },
+            files: ['scripts/content.js']
+          });
+          
+          // Try again after injection
+          await new Promise(resolve => setTimeout(resolve, 500));
+          const response = await chrome.tabs.sendMessage(activeTab.id, message);
+          
+          if (response?.success) {
+            let platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
+            if (platform === 'twitter') platformName = 'X/Twitter';
+            showNotification(`Content has been filled on ${platformName}. Please review before posting.`);
+          } else {
+            showNotification(`Could not fill content. Please try again.`);
+          }
+          
+          sendResponse({ ok: true, data: response });
+        }
         return;
       }
 
@@ -108,5 +143,3 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   handleMessage();
   return true; // keep channel open for async response
 });
-
-
