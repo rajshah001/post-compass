@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Post Compass",
+  "version": "0.1.0",
+  "description": "Rewrite raw thoughts with AI and discover the best communities to post them.",
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": [
+    "https://text.pollinations.ai/*"
+  ],
+  "background": {
+    "service_worker": "scripts/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["scripts/content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
+
+

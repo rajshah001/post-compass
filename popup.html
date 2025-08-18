@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Post Compass</title>
+    <link rel="stylesheet" href="styles/popup.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div class="brand">Post Compass</div>
+    </header>
+
+    <main>
+      <label class="label" for="modelSelect">Model</label>
+      <select id="modelSelect" class="select"></select>
+
+      <label class="label" for="thoughtInput" style="margin-top:8px;">Your raw thought</label>
+      <textarea id="thoughtInput" placeholder="Drop a rough idea, draft, or question..."></textarea>
+
+      <button id="rewriteBtn" class="primary">Rewrite with AI</button>
+
+      <div class="card hidden" id="platformDrafts">
+        <div class="section-title">Platform drafts</div>
+
+        <div class="platform-block" id="twitterCard">
+          <div class="platform-header">
+            <span><strong>X (Twitter)</strong></span>
+            <span class="char-count" id="twitterCount">0/256</span>
+          </div>
+          <div class="text" id="twitterText"></div>
+          <div class="actions">
+            <button id="copyTwitter" class="ghost">Copy</button>
+          </div>
+        </div>
+
+        <div class="platform-block" id="linkedinCard">
+          <div class="platform-header">
+            <span><strong>LinkedIn</strong></span>
+            <span class="char-count" id="linkedinCount">0/3000</span>
+          </div>
+          <div class="text" id="linkedinText"></div>
+          <div class="actions">
+            <button id="copyLinkedIn" class="ghost">Copy</button>
+          </div>
+        </div>
+
+        <div class="platform-block" id="redditCard">
+          <div class="platform-header">
+            <span><strong>Reddit</strong></span>
+            <span class="char-count" id="redditCount">0/40000</span>
+          </div>
+          <div class="text" id="redditText"></div>
+          <div class="actions">
+            <button id="copyReddit" class="ghost">Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <button id="findBtn" class="secondary">Find Communities</button>
+
+      <div id="suggestionsSection" class="card hidden">
+        <div class="section-title">Suggested communities</div>
+        <ul id="suggestionsList"></ul>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <span class="muted">Powered by Pollinations</span>
+    </footer>
+
+    <script type="module" src="scripts/popup.js"></script>
+  </body>
+  </html>
+
+
