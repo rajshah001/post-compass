@@ -7,6 +7,7 @@ Rewrite raw thoughts with AI and discover the best places to post them (Reddit s
 - Rewrite any rough thought with Pollinations AI for clarity and tone while keeping meaning intact.
 - Generate uniquely crafted drafts per platform (X, LinkedIn, Reddit) with platform-aware style and limits.
 - Recommend relevant communities to post to (X hashtags/communities and Reddit subreddits) based on the content.
+- One-click open to compose screens on X, LinkedIn, and Reddit with your finalized text prefilled for quick manual posting.
 
 ## Install (Load Unpacked)
 
@@ -18,9 +19,14 @@ Rewrite raw thoughts with AI and discover the best places to post them (Reddit s
 ## Usage
 
 - Select an AI model (fetched from Pollinations) in the dropdown.
-- Type or paste your raw thought.
-- Click "Rewrite with AI" to generate platform-specific drafts (X, LinkedIn, Reddit). Character counters show length vs limits.
-- Click "Find Communities" to get suggested subreddits and X hashtags to reach the right audience.
+- Paste your raw thought and click "Rewrite with AI" to generate platform-specific drafts (X, LinkedIn, Reddit). Character counters are shown.
+- Click "Find Communities" for suggested subreddits and X hashtags.
+- When ready, click "Open X", "Open LinkedIn", or "Open Reddit" to open the corresponding compose page with the text prefilled. Review and click Post on the site.
+
+### Prefill details
+- X (Twitter): uses `https://x.com/intent/tweet?text=...`.
+- LinkedIn: uses the share interface. LinkedIn has limited official support for text-only prefill; we provide a best-effort share URL so you can paste/review as needed.
+- Reddit: uses `https://www.reddit.com/submit?selftext=...` (choose subreddit on the site).
 
 ## Tech
 
@@ -39,7 +45,7 @@ Rewrite raw thoughts with AI and discover the best places to post them (Reddit s
 If the OpenAI-compatible endpoint is unavailable, the extension falls back to a simple text endpoint at `https://text.pollinations.ai/{prompt}` and applies local adjustments.
 
 ### System prompt
-The system prompt is tuned for virality and norms per platform:
+Tuned per platform:
 - X: strong hook, <=256 chars, minimal hashtags, readable line breaks, engagement nudge.
 - LinkedIn: professional, value-led, short paragraphs/bullets, 1–5 hashtags.
 - Reddit: community-first, full context, no hashtags, minimal markdown, no clickbait.
@@ -49,20 +55,11 @@ The system prompt is tuned for virality and norms per platform:
 - LinkedIn: 3000 characters
 - Reddit: 40000 characters
 
-Limits are enforced after generation as a safeguard; prompts also instruct the model to comply.
-
 ## Communities suggestions
 Static keyword→community mapping suggests relevant subreddits and X hashtags. See `scripts/services/suggester.js` and extend as needed.
 
 ## Environment variables / API keys
-
-If you prefer OpenAI or another OpenAI-compatible provider:
-- Update `scripts/services/ai.js` to pass `{ baseUrl, model, apiKey }` to `generatePlatformDrafts()` or replace the defaults.
-- For OpenAI specifically:
-  - baseUrl: `https://api.openai.com/v1`
-  - model: e.g. `gpt-4o-mini`
-  - apiKey: your OpenAI API key
-- To store the key safely in the extension, add an Options page and persist to `chrome.storage.local` (not implemented in this MVP).
+If you prefer OpenAI or another OpenAI-compatible provider, adjust `scripts/services/ai.js` to pass `{ baseUrl, model, apiKey }` to `generatePlatformDrafts()`.
 
 ## File layout
 ```
@@ -91,7 +88,7 @@ After finishing a task, commit and push:
 ```bash
 cd /Users/rajshah/Projects/pollinations-ai/post-compass
 git add .
-git commit -m "feat: model selection, per-platform drafts with limits, and community suggestions"
+git commit -m "feat: add Open buttons to prefill compose screens for X/LinkedIn/Reddit"
 git push origin main
 ```
 

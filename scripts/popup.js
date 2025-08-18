@@ -16,6 +16,9 @@ const redditCount = document.getElementById('redditCount');
 const copyTwitter = document.getElementById('copyTwitter');
 const copyLinkedIn = document.getElementById('copyLinkedIn');
 const copyReddit = document.getElementById('copyReddit');
+const openTwitter = document.getElementById('openTwitter');
+const openLinkedIn = document.getElementById('openLinkedIn');
+const openReddit = document.getElementById('openReddit');
 
 const findBtn = document.getElementById('findBtn');
 const suggestionsSection = document.getElementById('suggestionsSection');
@@ -120,6 +123,34 @@ copyReddit.addEventListener('click', async () => {
   await navigator.clipboard.writeText(t);
   copyReddit.textContent = 'Copied!';
   setTimeout(() => (copyReddit.textContent = 'Copy'), 1200);
+});
+
+openTwitter.addEventListener('click', async () => {
+  const t = twitterTextEl.textContent.trim();
+  if (!t) return;
+  try { await navigator.clipboard.writeText(t); } catch (_) {}
+  const url = `https://x.com/intent/tweet?text=${encodeURIComponent(t)}`;
+  window.open(url, '_blank');
+});
+
+openLinkedIn.addEventListener('click', async () => {
+  const t = linkedinTextEl.textContent.trim();
+  if (!t) return;
+  try { await navigator.clipboard.writeText(t); } catch (_) {}
+  // Best-effort: legacy endpoint with summary param; clipboard has full text for quick paste if needed
+  const url = `https://www.linkedin.com/shareArticle?mini=true&summary=${encodeURIComponent(t)}`;
+  window.open(url, '_blank');
+});
+
+openReddit.addEventListener('click', async () => {
+  const t = redditTextEl.textContent.trim();
+  if (!t) return;
+  try { await navigator.clipboard.writeText(t); } catch (_) {}
+  // Derive a short title from first sentence or first 80 chars
+  const firstLine = t.split(/\n|[.!?]/)[0].trim();
+  const title = (firstLine || t).slice(0, 80);
+  const url = `https://www.reddit.com/submit?selftext=true&title=${encodeURIComponent(title)}&text=${encodeURIComponent(t)}`;
+  window.open(url, '_blank');
 });
 
 findBtn.addEventListener('click', async () => {
