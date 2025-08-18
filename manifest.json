@@ -4,9 +4,12 @@
   "version": "0.1.0",
   "description": "Rewrite raw thoughts with AI and discover the best communities to post them.",
   "action": {
-    "default_popup": "popup.html"
+    "default_title": "Open Post Compass Sidebar"
   },
-  "permissions": ["storage", "activeTab", "scripting", "clipboardWrite"],
+  "side_panel": {
+    "default_path": "sidebar.html"
+  },
+  "permissions": ["storage", "activeTab", "scripting", "clipboardWrite", "sidePanel"],
   "host_permissions": [
     "https://text.pollinations.ai/*",
     "https://www.linkedin.com/*",

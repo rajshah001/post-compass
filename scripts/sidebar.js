@@ -348,11 +348,9 @@ navReddit.addEventListener('click', () => {
   }
 });
 
-// Close sidebar
+// Close sidebar (Chrome will handle this natively)
 sidebarClose.addEventListener('click', () => {
-  if (chrome?.runtime?.sendMessage) {
-    chrome.runtime.sendMessage({ type: 'closeSidebar' });
-  }
+  window.close();
 });
 
 findBtn.addEventListener('click', async () => {

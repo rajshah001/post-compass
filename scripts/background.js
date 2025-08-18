@@ -3,6 +3,8 @@ import { suggestCommunities } from './services/suggester.js';
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Post Compass installed');
+  // Enable opening side panel when extension icon is clicked
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -20,12 +22,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
 
-      if (message?.type === 'openPopup') {
-        const url = chrome.runtime.getURL('popup.html');
-        await chrome.tabs.create({ url });
-        sendResponse({ ok: true });
-        return;
-      }
+
 
       if (message?.type === 'navigate') {
         await chrome.tabs.update(sender.tab.id, { url: message.url });
@@ -33,7 +30,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
 
-      if (message?.type === 'fillTwitter' || message?.type === 'fillLinkedIn' || message?.type === 'fillReddit' || message?.type === 'closeSidebar') {
+      if (message?.type === 'fillTwitter' || message?.type === 'fillLinkedIn' || message?.type === 'fillReddit') {
         // Forward message to content script
         const response = await chrome.tabs.sendMessage(sender.tab.id, message);
         sendResponse({ ok: true, data: response });

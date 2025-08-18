@@ -1,22 +1,23 @@
 # Post Compass (Chrome Extension)
 
-AI-powered content creation for X, LinkedIn, and Reddit with persistent sidebar interface and direct DOM injection.
+AI-powered content creation for X, LinkedIn, and Reddit with native Chrome sidebar interface and direct DOM injection.
 
 ## What it does
 
-- **Persistent Sidebar**: Click the floating "PC" button on X/LinkedIn/Reddit to open a sidebar that stays open while navigating.
-- **AI Rewriting**: Generate platform-specific drafts optimized for each platform's algorithms and character limits.
-- **Direct Fill**: DOM injection to autofill composers on X, LinkedIn, and Reddit without opening new tabs.
-- **Smart Navigation**: "Go to" buttons navigate to compose pages in the same tab while keeping the sidebar open.
-- **Community Discovery**: Find relevant X hashtags and Reddit subreddits based on your content.
-- **History**: Local storage of all past thoughts and generated drafts with restore functionality.
+- **Native Sidebar**: Click the extension icon to open Chrome's built-in sidebar with full functionality
+- **AI Rewriting**: Generate platform-specific drafts optimized for each platform's algorithms and character limits
+- **Direct Fill**: DOM injection to autofill composers on X, LinkedIn, and Reddit without opening new tabs
+- **Smart Navigation**: "Go to" buttons navigate to compose pages while keeping the sidebar open
+- **Community Discovery**: Find relevant X hashtags and Reddit subreddits based on your content
+- **History**: Local storage of all past thoughts and generated drafts with restore functionality
 
 ## Features
 
-### Sidebar Interface
-- Persistent UI that stays open while browsing X/LinkedIn/Reddit
-- Toggle visibility with the floating "PC" button (top-right corner)
-- Navigate between platforms without losing your drafts
+### Native Chrome Sidebar
+- Uses Chrome's sidePanel API for seamless integration
+- Opens by clicking the extension icon in the toolbar
+- Stays open while browsing and navigating between sites
+- Native Chrome UI with proper window management
 
 ### Platform-Specific Content
 - **X (Twitter)**: 256 chars, engagement-focused with hashtags
@@ -30,8 +31,8 @@ AI-powered content creation for X, LinkedIn, and Reddit with persistent sidebar 
 
 ## Usage
 
-1. Visit X, LinkedIn, or Reddit
-2. Click the floating "PC" button to open the sidebar
+1. Click the Post Compass extension icon in Chrome's toolbar
+2. The sidebar opens with the full interface
 3. Write your thought and click "Rewrite with AI"
 4. Use "Fill [Platform]" buttons to inject content directly into composers
 5. Or use "Go to [Platform]" to navigate to compose pages
@@ -39,7 +40,7 @@ AI-powered content creation for X, LinkedIn, and Reddit with persistent sidebar 
 
 ## Technical Implementation
 
-- **Sidebar**: Injected iframe with full extension UI
+- **Chrome sidePanel API**: Native sidebar integration (Chrome 114+)
 - **DOM Injection**: Multiple selector fallbacks for robust field detection
-- **Cross-Platform**: Unified interface works across all target sites
+- **Cross-Platform**: Works on X, LinkedIn, and Reddit
 - **Storage**: History and preferences in `chrome.storage.local`

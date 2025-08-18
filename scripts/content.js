@@ -3,79 +3,6 @@
   const isTarget = HOSTS.some(h => location.hostname.endsWith(h));
   if (!isTarget) return;
 
-  const SIDEBAR_ID = 'post-compass-sidebar';
-  const BTN_ID = 'post-compass-fab';
-  
-  let sidebarFrame = null;
-
-  function createSidebar() {
-    if (document.getElementById(SIDEBAR_ID)) return;
-
-    sidebarFrame = document.createElement('iframe');
-    sidebarFrame.id = SIDEBAR_ID;
-    sidebarFrame.src = chrome?.runtime?.getURL ? chrome.runtime.getURL('sidebar.html') : 'sidebar.html';
-    sidebarFrame.style.cssText = `
-      position: fixed;
-      top: 0;
-      right: 0;
-      width: 380px;
-      height: 100vh;
-      border: none;
-      z-index: 2147483646;
-      background: white;
-      box-shadow: -4px 0 16px rgba(0,0,0,0.1);
-    `;
-    document.documentElement.appendChild(sidebarFrame);
-  }
-
-  function removeSidebar() {
-    const sidebar = document.getElementById(SIDEBAR_ID);
-    if (sidebar) sidebar.remove();
-    sidebarFrame = null;
-  }
-
-  function createFAB() {
-    if (document.getElementById(BTN_ID)) return;
-
-    const style = document.createElement('style');
-    style.textContent = `
-      #${BTN_ID} {
-        position: fixed;
-        right: 16px;
-        top: 16px;
-        width: 42px;
-        height: 42px;
-        border-radius: 9999px;
-        background: #111827;
-        color: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
-        box-shadow: 0 6px 16px rgba(0,0,0,0.25);
-        z-index: 2147483647;
-        cursor: pointer;
-        user-select: none;
-      }
-      #${BTN_ID}:hover { filter: brightness(1.05); }
-    `;
-    document.documentElement.appendChild(style);
-
-    const btn = document.createElement('div');
-    btn.id = BTN_ID;
-    btn.title = 'Open Post Compass';
-    btn.textContent = 'PC';
-    btn.addEventListener('click', () => {
-      if (sidebarFrame) {
-        removeSidebar();
-      } else {
-        createSidebar();
-      }
-    });
-    document.documentElement.appendChild(btn);
-  }
-
   // DOM injection functions
   function fillTwitterComposer(text) {
     const selectors = [
@@ -182,9 +109,6 @@
         } else if (message.type === 'fillReddit') {
           const success = fillRedditComposer(message.title, message.body);
           sendResponse({ success });
-        } else if (message.type === 'closeSidebar') {
-          removeSidebar();
-          sendResponse({ success: true });
         }
       } catch (e) {
         console.error('Content script message handler error:', e);
@@ -193,7 +117,6 @@
     });
   }
 
-  createFAB();
 })();
 
 
