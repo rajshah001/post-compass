@@ -1,29 +1,45 @@
 # Post Compass (Chrome Extension)
 
-Rewrite raw thoughts with AI and discover the best places to post them (Reddit subreddits and X/Twitter communities/hashtags).
+AI-powered content creation for X, LinkedIn, and Reddit with persistent sidebar interface and direct DOM injection.
 
 ## What it does
 
-- Rewrite any rough thought with Pollinations AI for clarity and tone while keeping meaning intact.
-- Generate uniquely crafted drafts per platform (X, LinkedIn, Reddit) with platform-aware style and limits.
-- Reddit output includes a separate Title (<=300 chars) and Body (<=40000 chars), shown with counters.
-- Recommend relevant communities to post to (X hashtags/communities and Reddit subreddits) based on the content.
-- One-click open to compose screens on X, LinkedIn, and Reddit with your finalized text prefilled for quick manual posting.
-- Keeps a local history (last 50) of your inputs and generated drafts.
-- On X/LinkedIn/Reddit pages, shows a floating "PC" button in the bottom-right to open the extension quickly.
+- **Persistent Sidebar**: Click the floating "PC" button on X/LinkedIn/Reddit to open a sidebar that stays open while navigating.
+- **AI Rewriting**: Generate platform-specific drafts optimized for each platform's algorithms and character limits.
+- **Direct Fill**: DOM injection to autofill composers on X, LinkedIn, and Reddit without opening new tabs.
+- **Smart Navigation**: "Go to" buttons navigate to compose pages in the same tab while keeping the sidebar open.
+- **Community Discovery**: Find relevant X hashtags and Reddit subreddits based on your content.
+- **History**: Local storage of all past thoughts and generated drafts with restore functionality.
+
+## Features
+
+### Sidebar Interface
+- Persistent UI that stays open while browsing X/LinkedIn/Reddit
+- Toggle visibility with the floating "PC" button (top-right corner)
+- Navigate between platforms without losing your drafts
+
+### Platform-Specific Content
+- **X (Twitter)**: 256 chars, engagement-focused with hashtags
+- **LinkedIn**: 3000 chars, professional tone with value-driven content  
+- **Reddit**: Separate title (300 chars) and body (40000 chars), community-first approach
+
+### Direct Autofill
+- **Fill X**: Injects text directly into X's tweet composer
+- **Fill LinkedIn**: Clicks "Start a post" and fills the editor
+- **Fill Reddit**: Fills both title and body fields on submit pages
 
 ## Usage
 
-- Select a model → write a thought → "Rewrite with AI".
-- Review X/LinkedIn drafts and Reddit Title/Body with live counters.
-- Click "Open X", "Open LinkedIn", or "Open Reddit" to prefill compose; on Reddit, both title and body are passed.
-- Use History to restore past items; use "Find Communities" for suggestions.
+1. Visit X, LinkedIn, or Reddit
+2. Click the floating "PC" button to open the sidebar
+3. Write your thought and click "Rewrite with AI"
+4. Use "Fill [Platform]" buttons to inject content directly into composers
+5. Or use "Go to [Platform]" to navigate to compose pages
+6. Review and post manually
 
-## Platform limits
-- X (Twitter): 256 characters
-- LinkedIn: 3000 characters
-- Reddit: Title 300, Body 40000
+## Technical Implementation
 
-Notes
-- LinkedIn prefill is limited; full text is copied to clipboard as fallback.
-- History stored in `chrome.storage.local`.
+- **Sidebar**: Injected iframe with full extension UI
+- **DOM Injection**: Multiple selector fallbacks for robust field detection
+- **Cross-Platform**: Unified interface works across all target sites
+- **Storage**: History and preferences in `chrome.storage.local`

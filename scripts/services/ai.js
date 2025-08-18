@@ -140,16 +140,30 @@ async function callSimpleTextEndpoint(baseUrl, prompt) {
 
 export async function fetchAvailableModels() {
   try {
+    // Try the direct models endpoint first
     const res = await fetch(`${DEFAULTS.baseUrl.replace(/\/$/, '')}/models`);
-    if (!res.ok) throw new Error(`models failed: ${res.status}`);
-    const data = await res.json();
-    if (Array.isArray(data)) {
-      const names = data
-        .filter(m => Array.isArray(m.output_modalities) ? m.output_modalities.includes('text') : true)
-        .map(m => m?.name || m?.aliases || m?.original_name)
-        .filter(Boolean);
-      if (names.length) return names;
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const names = data
+          .filter(m => Array.isArray(m.output_modalities) ? m.output_modalities.includes('text') : true)
+          .map(m => m?.name || m?.aliases || m?.original_name)
+          .filter(Boolean);
+        if (names.length) return names;
+      }
     }
+    
+    // Fallback: try OpenAI-compatible models endpoint
+    const openaiRes = await fetch(`${DEFAULTS.baseUrl.replace(/\/$/, '')}/openai/models`);
+    if (openaiRes.ok) {
+      const openaiData = await openaiRes.json();
+      if (openaiData?.data && Array.isArray(openaiData.data)) {
+        const names = openaiData.data.map(m => m?.id).filter(Boolean);
+        if (names.length) return names;
+      }
+    }
+    
+    // Final fallback: return default
     return [DEFAULTS.defaultModel];
   } catch (e) {
     console.warn('fetchAvailableModels error:', e);
