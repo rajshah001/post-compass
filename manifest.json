@@ -20,7 +20,7 @@
   
   "web_accessible_resources": [
     {
-      "resources": ["sidebar.html", "styles/sidebar.css", "scripts/sidebar.js", "scripts/services/ai.js", "scripts/services/suggester.js"],
+      "resources": ["sidebar.html", "styles/sidebar.css", "scripts/sidebar.js", "scripts/services/ai.js", "scripts/services/suggester.js", "scripts/services/researcher.js"],
       "matches": ["<all_urls>"]
     }
   ]

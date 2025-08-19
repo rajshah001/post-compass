@@ -29,10 +29,15 @@
         <option value="Persuasive">Persuasive</option>
       </select>
 
-      <label class="label" for="thoughtInput" style="margin-top:8px;">Your raw thought</label>
-      <textarea id="thoughtInput" placeholder="Drop a rough idea, draft, or question..."></textarea>
+      <label class="label" for="thoughtInput" style="margin-top:8px;">Your topic or idea</label>
+      <textarea id="thoughtInput" placeholder="e.g., latest Kubernetes news, Bambu Lab AMS tips, web perf trends..."></textarea>
 
-      <button id="rewriteBtn" class="primary">Rewrite with AI</button>
+      <button id="rewriteBtn" class="primary">Generate with AI</button>
+
+      <div class="card hidden" id="researchCard">
+        <div class="section-title">Recent sources we considered</div>
+        <ul id="researchList"></ul>
+      </div>
 
       <div class="card hidden" id="platformDrafts">
         <div class="section-title">Platform drafts</div>

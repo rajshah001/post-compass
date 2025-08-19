@@ -1,4 +1,5 @@
-import { fetchAvailableModels, generatePlatformDrafts, PLATFORM_LIMITS, refinePlatformDraft } from './services/ai.js';
+import { fetchAvailableModels, generatePlatformDrafts, PLATFORM_LIMITS, refinePlatformDraft, generateFromResearch } from './services/ai.js';
+import { researchTopic } from './services/researcher.js';
 import { suggestCommunitiesAI } from './services/suggester.js';
 
 const thoughtInput = document.getElementById('thoughtInput');
@@ -38,6 +39,8 @@ const navReddit = document.getElementById('navReddit');
 const findBtn = document.getElementById('findBtn');
 const suggestionsSection = document.getElementById('suggestionsSection');
 const suggestionsList = document.getElementById('suggestionsList');
+const researchCard = document.getElementById('researchCard');
+const researchList = document.getElementById('researchList');
 
 const historySection = document.getElementById('historySection');
 const historyList = document.getElementById('historyList');
@@ -276,7 +279,18 @@ rewriteBtn.addEventListener('click', async () => {
   setLoading(rewriteBtn, true);
   try {
     const model = modelSelect.value;
-    const drafts = await generatePlatformDrafts(raw, { model, tone: currentTone });
+    // Step 1: research
+    const research = await researchTopic(raw, { maxPerSource: 6 });
+    researchList.innerHTML = '';
+    for (const it of research) {
+      const li = document.createElement('li');
+      li.innerHTML = `<a href="${it.url}" target="_blank" rel="noopener noreferrer">[${it.source}] ${it.title}</a>`;
+      researchList.appendChild(li);
+    }
+    if (research.length) researchCard.classList.remove('hidden'); else researchCard.classList.add('hidden');
+
+    // Step 2: generate using research + topic
+    const drafts = await generateFromResearch(raw, research, { model, tone: currentTone });
 
     twitterTextEl.value = drafts.twitter.text || '';
     linkedinTextEl.value = drafts.linkedin.text || '';

@@ -238,4 +238,27 @@ export async function refinePlatformDraft(platform, currentDraft, instructions, 
   }
 }
 
+export async function generateFromResearch(topic, researchItems, opts = {}) {
+  const baseUrl = opts.baseUrl || DEFAULTS.baseUrl;
+  const model = opts.model || DEFAULTS.defaultModel;
+  const tone = opts.tone || 'Auto';
+  const apiKey = opts.apiKey || undefined;
+
+  const systemPrompt = buildSystemPrompt(tone);
+  const sourcesBlock = (researchItems || []).slice(0, 12).map((it, i) => `${i+1}. [${it.source}] ${it.title} — ${it.url}`).join('\n');
+  const userPrompt = (
+    `Create platform-optimized drafts from the topic and the recent sources. Use the sources to extract current angles, terms, and hooks. Avoid fabricating facts.\n` +
+    `Topic: ${topic}\n` +
+    `Sources (recent):\n${sourcesBlock}\n\n` +
+    `Return STRICT JSON with keys "twitter", "linkedin", "reddit" like before. Keep limits.`
+  );
+
+  try {
+    return await callOpenAICompatible(baseUrl, model, userPrompt, systemPrompt, apiKey);
+  } catch (_) {
+    // Fallback to topic only
+    return generatePlatformDrafts(topic, opts);
+  }
+}
+
 
