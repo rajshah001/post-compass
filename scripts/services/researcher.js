@@ -21,14 +21,15 @@ export async function researchTopic(topic, opts = {}) {
   const sinceUnix = Math.floor(Date.now() / 1000) - days * 86400;
 
   const hnUrl = `https://hn.algolia.com/api/v1/search?query=${query}&tags=story&hitsPerPage=${maxPerSource}&numericFilters=created_at_i>${sinceUnix}`;
-  const redditUrl = `https://www.reddit.com/search.json?q=${query}&sort=hot&t=week&limit=${Math.min(maxPerSource, 10)}`;
+  // Use proxy for Reddit to avoid CORS
+  const redditUrl = `https://r.jina.ai/http://www.reddit.com/search.json?q=${query}&sort=hot&t=week&limit=${Math.min(maxPerSource, 10)}`;
   // Use r.jina.ai as a permissive proxy to avoid CORS for Google News and X
   const gnewsUrl = `https://r.jina.ai/http://news.google.com/rss/search?q=${query}&hl=en-US&gl=US&ceid=US:en`;
   const xSearchUrl = `https://r.jina.ai/http://x.com/search?q=${query}&src=typed_query&f=live`;
 
-  const [hnJson, redditJson, gnewsText, xText] = await Promise.all([
+  const [hnJson, redditText, gnewsText, xText] = await Promise.all([
     safeFetchJson(hnUrl),
-    safeFetchJson(redditUrl),
+    safeFetchText(redditUrl),
     safeFetchText(gnewsUrl),
     safeFetchText(xSearchUrl)
   ]);
@@ -47,6 +48,10 @@ export async function researchTopic(topic, opts = {}) {
     }
   }
 
+  let redditJson = null;
+  if (redditText) {
+    try { redditJson = JSON.parse(redditText); } catch (_) { redditJson = null; }
+  }
   if (redditJson && redditJson.data && Array.isArray(redditJson.data.children)) {
     for (const c of redditJson.data.children) {
       const d = c.data || {};
