@@ -126,7 +126,19 @@ async function callOpenAICompatible(baseUrl, model, userPrompt, systemPrompt, ap
       }
       const braceMatch = text.match(/\{[\s\S]*\}/);
       if (braceMatch) {
-        try { return JSON.parse(braceMatch[0]); } catch (_) { /* ignore */ }
+        const candidate = braceMatch[0];
+        try { return JSON.parse(candidate); } catch (_) { /* ignore */ }
+        // Attempt to coerce loose JSON to strict JSON
+        try {
+          let loose = candidate;
+          // Replace single quotes with double quotes for quoted strings
+          loose = loose.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, '"$1"');
+          // Quote unquoted object keys
+          loose = loose.replace(/(?<!")([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '"$1":');
+          // Remove trailing commas
+          loose = loose.replace(/,\s*(\}|\])/g, '$1');
+          return JSON.parse(loose);
+        } catch (_) { /* ignore */ }
       }
       return null;
     }

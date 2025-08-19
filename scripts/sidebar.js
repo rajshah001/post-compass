@@ -298,9 +298,30 @@ rewriteBtn.addEventListener('click', async () => {
       body: (v && typeof v.body === 'string') ? v.body : ''
     });
 
-    const twitterDraft = toText(drafts.twitter);
-    const linkedinDraft = toText(drafts.linkedin);
-    const redditDraft = toReddit(drafts.reddit);
+    // Defensive normalization in case model returns raw JSON string
+    const coerceText = (val) => {
+      if (typeof val === 'string') {
+        // Strip obvious JSON-like wrappers
+        if (val.trim().startsWith('{') || val.trim().startsWith('[')) {
+          try {
+            const obj = JSON.parse(val);
+            return toText(obj.twitter || obj.linkedin || obj) || val;
+          } catch { /* leave as-is */ }
+        }
+        return val;
+      }
+      return toText(val);
+    };
+    const coerceReddit = (val) => {
+      if (typeof val === 'string') {
+        try { const obj = JSON.parse(val); return toReddit(obj.reddit || obj); } catch { return { title: '', body: val }; }
+      }
+      return toReddit(val);
+    };
+
+    const twitterDraft = coerceText(drafts.twitter);
+    const linkedinDraft = coerceText(drafts.linkedin);
+    const redditDraft = coerceReddit(drafts.reddit);
 
     twitterTextEl.value = twitterDraft;
     linkedinTextEl.value = linkedinDraft;
