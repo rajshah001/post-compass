@@ -266,7 +266,13 @@ export async function generateFromResearch(topic, researchItems, opts = {}) {
   const systemPrompt = buildSystemPrompt(tone);
   const sourcesBlock = (researchItems || []).slice(0, 12).map((it, i) => `${i+1}. [${it.source}] ${it.title} — ${it.url}`).join('\n');
   const userPrompt = (
-    `Create platform-optimized drafts from the topic and the recent sources. Use the sources to extract current angles, terms, and hooks. Avoid fabricating facts.\n` +
+    `Act as an expert social media editor. Create platform-optimized drafts that summarize recent concrete developments and insights about the topic using the sources below.\n` +
+    `Rules:\n` +
+    `- Include 1–3 specific points or examples from the sources (headline-level), but paraphrase and avoid long quotes.\n` +
+    `- Prefer recency and relevance; if signals conflict, pick the dominant trend.\n` +
+    `- Avoid vague claims like "news just dropped". Always mention what, who, or impact in brief.\n` +
+    `- Keep within platform length constraints.\n` +
+    `- For Reddit, write a clear title and a concise body with 3–6 bullet points or short paragraphs.\n\n` +
     `Topic: ${topic}\n` +
     `Sources (recent):\n${sourcesBlock}\n\n` +
     'Output STRICT JSON with keys "twitter", "linkedin", "reddit".\n' +

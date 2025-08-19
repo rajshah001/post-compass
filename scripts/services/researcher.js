@@ -4,6 +4,12 @@ function safeFetchJson(url) {
     .catch(() => null);
 }
 
+function safeFetchText(url) {
+  return fetch(url, { method: 'GET' })
+    .then(res => (res.ok ? res.text() : Promise.reject(new Error(`fetch failed ${res.status}`))))
+    .catch(() => null);
+}
+
 function normalizeUrl(url) {
   try { return new URL(url).toString(); } catch { return url; }
 }
@@ -16,10 +22,15 @@ export async function researchTopic(topic, opts = {}) {
 
   const hnUrl = `https://hn.algolia.com/api/v1/search?query=${query}&tags=story&hitsPerPage=${maxPerSource}&numericFilters=created_at_i>${sinceUnix}`;
   const redditUrl = `https://www.reddit.com/search.json?q=${query}&sort=hot&t=week&limit=${Math.min(maxPerSource, 10)}`;
+  // Use r.jina.ai as a permissive proxy to avoid CORS for Google News and X
+  const gnewsUrl = `https://r.jina.ai/http://news.google.com/rss/search?q=${query}&hl=en-US&gl=US&ceid=US:en`;
+  const xSearchUrl = `https://r.jina.ai/http://x.com/search?q=${query}&src=typed_query&f=live`;
 
-  const [hnJson, redditJson] = await Promise.all([
+  const [hnJson, redditJson, gnewsText, xText] = await Promise.all([
     safeFetchJson(hnUrl),
-    safeFetchJson(redditUrl)
+    safeFetchJson(redditUrl),
+    safeFetchText(gnewsUrl),
+    safeFetchText(xSearchUrl)
   ]);
 
   const items = [];
@@ -46,6 +57,47 @@ export async function researchTopic(topic, opts = {}) {
         url: normalizeUrl(d.url || `https://www.reddit.com${d.permalink || ''}`),
         score: Number(d.ups || d.score || 0),
         createdAt: Number((d.created_utc || 0) * 1000)
+      });
+    }
+  }
+
+  // Parse Google News RSS via proxy (XML text)
+  if (gnewsText) {
+    try {
+      const doc = new DOMParser().parseFromString(gnewsText, 'text/xml');
+      const nodes = Array.from(doc.querySelectorAll('item')).slice(0, maxPerSource);
+      for (const it of nodes) {
+        const title = (it.querySelector('title')?.textContent || '').trim();
+        const link = (it.querySelector('link')?.textContent || '').trim();
+        const pubDate = (it.querySelector('pubDate')?.textContent || '').trim();
+        const ts = pubDate ? Date.parse(pubDate) : Date.now();
+        if (title && link) {
+          items.push({ source: 'GoogleNews', title, url: normalizeUrl(link), score: 0.6, createdAt: ts });
+        }
+      }
+    } catch (_) { /* ignore */ }
+  }
+
+  // Heuristic parse of X search page text via proxy; extract frequent hashtags
+  if (xText) {
+    const tags = {};
+    const regex = /#([a-zA-Z0-9_]{2,30})/g;
+    let m;
+    while ((m = regex.exec(xText)) !== null) {
+      const tag = `#${m[1]}`;
+      tags[tag] = (tags[tag] || 0) + 1;
+    }
+    const topTags = Object.entries(tags)
+      .sort((a,b) => b[1]-a[1])
+      .slice(0, Math.min(5, maxPerSource))
+      .map(([t,c]) => t);
+    if (topTags.length) {
+      items.push({
+        source: 'X',
+        title: `Trending hashtags: ${topTags.join(' ')}`,
+        url: normalizeUrl(`https://x.com/search?q=${query}`),
+        score: 0.5,
+        createdAt: Date.now()
       });
     }
   }
