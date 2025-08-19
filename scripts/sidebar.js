@@ -50,6 +50,7 @@ const toneSelect = document.getElementById('toneSelect');
 let currentTone = 'Auto';
 const versions = { twitter: [], linkedin: [], reddit: [] };
 let versionIndex = { twitter: -1, linkedin: -1, reddit: -1 };
+let currentSessionId = null;
 
 function setLoading(button, isLoading) {
   if (isLoading) {
@@ -151,6 +152,39 @@ async function saveHistory(entry) {
   });
 }
 
+async function updateHistoryEntryById(id, patch) {
+  if (!id) return;
+  try {
+    if (!chrome?.storage?.local) return;
+    chrome.storage.local.get(['pc_history'], data => {
+      const list = Array.isArray(data.pc_history) ? data.pc_history : [];
+      const idx = list.findIndex(it => it.id === id);
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], ...patch };
+        chrome.storage.local.set({ pc_history: list }, () => {});
+      }
+    });
+  } catch (_) {
+    // ignore
+  }
+}
+
+function getDraftsFromUI() {
+  return {
+    twitter: { text: (twitterTextEl.value || '').trim() },
+    linkedin: { text: (linkedinTextEl.value || '').trim() },
+    reddit: { title: (redditTitleEl.value || '').trim(), body: (redditBodyEl.value || '').trim() }
+  };
+}
+
+function serializeVersions() {
+  return {
+    twitter: [...versions.twitter],
+    linkedin: [...versions.linkedin],
+    reddit: versions.reddit.map(v => ({ title: v.title, body: v.body }))
+  };
+}
+
 async function clearHistory() {
   return new Promise(resolve => {
     try {
@@ -179,6 +213,7 @@ function renderHistory(items) {
       <div style="margin-top:4px; white-space:pre-wrap;">${item.raw}</div>
       <div style="margin-top:6px;">
         <a href="#" data-action="restore" class="muted" style="font-size:12px;">Restore drafts</a>
+        ${item?.versions ? '<span class="muted" style="font-size:12px; margin-left:8px;">with refinements</span>' : ''}
       </div>
     `;
     li.querySelector('[data-action="restore"]').addEventListener('click', (e) => {
@@ -192,7 +227,19 @@ function renderHistory(items) {
       updateCounter(linkedinTextEl, linkedinCount, PLATFORM_LIMITS.linkedin);
       updateRedditCounts();
       platformDrafts.classList.remove('hidden');
-      setInitialVersions(item.drafts);
+      if (item.versions && item.versions.twitter && item.versions.linkedin && item.versions.reddit) {
+        versions.twitter = [...item.versions.twitter];
+        versions.linkedin = [...item.versions.linkedin];
+        versions.reddit = item.versions.reddit.map(v => ({ title: v.title, body: v.body }));
+        versionIndex.twitter = versions.twitter.length ? versions.twitter.length - 1 : -1;
+        versionIndex.linkedin = versions.linkedin.length ? versions.linkedin.length - 1 : -1;
+        versionIndex.reddit = versions.reddit.length ? versions.reddit.length - 1 : -1;
+        updateVersionButtons();
+      } else {
+        setInitialVersions(item.drafts);
+        updateVersionButtons();
+      }
+      currentSessionId = item.id || null;
       switchToCompose();
     });
     historyList.appendChild(li);
@@ -246,12 +293,14 @@ rewriteBtn.addEventListener('click', async () => {
     setInitialVersions(drafts);
     updateVersionButtons();
 
+    currentSessionId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
     await saveHistory({
-      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      id: currentSessionId,
       timestamp: Date.now(),
       model,
       raw,
-      drafts
+      drafts,
+      versions: serializeVersions()
     });
 
     const history = await loadHistory();
@@ -354,6 +403,7 @@ twitterRefineBtn.addEventListener('click', async () => {
     const model = modelSelect.value;
     const refined = await refinePlatformDraft('twitter', current, (twitterRefine.value||'').trim(), thoughtInput.value.trim(), { model, tone: currentTone });
     twitterTextEl.value = refined.text || current; updateCounter(twitterTextEl, twitterCount, PLATFORM_LIMITS.twitter); pushVersion('twitter', twitterTextEl.value);
+    await updateHistoryEntryById(currentSessionId, { drafts: getDraftsFromUI(), versions: serializeVersions() });
   } finally { setLoading(twitterRefineBtn,false);} 
 });
 linkedinRefineBtn.addEventListener('click', async () => {
@@ -363,6 +413,7 @@ linkedinRefineBtn.addEventListener('click', async () => {
     const model = modelSelect.value;
     const refined = await refinePlatformDraft('linkedin', current, (linkedinRefine.value||'').trim(), thoughtInput.value.trim(), { model, tone: currentTone });
     linkedinTextEl.value = refined.text || current; updateCounter(linkedinTextEl, linkedinCount, PLATFORM_LIMITS.linkedin); pushVersion('linkedin', linkedinTextEl.value);
+    await updateHistoryEntryById(currentSessionId, { drafts: getDraftsFromUI(), versions: serializeVersions() });
   } finally { setLoading(linkedinRefineBtn,false);} 
 });
 redditRefineBtn.addEventListener('click', async () => {
@@ -372,6 +423,7 @@ redditRefineBtn.addEventListener('click', async () => {
     const model = modelSelect.value;
     const refined = await refinePlatformDraft('reddit', current, (redditRefine.value||'').trim(), thoughtInput.value.trim(), { model, tone: currentTone });
     redditTitleEl.value = refined.title || current.title; redditBodyEl.value = refined.body || current.body; updateRedditCounts(); pushVersion('reddit', {title: redditTitleEl.value, body: redditBodyEl.value});
+    await updateHistoryEntryById(currentSessionId, { drafts: getDraftsFromUI(), versions: serializeVersions() });
   } finally { setLoading(redditRefineBtn,false);} 
 });
 twitterPrev.addEventListener('click', ()=>showVersion('twitter',-1));
