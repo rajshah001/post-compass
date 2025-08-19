@@ -9,12 +9,25 @@
   <body>
     <header class="header">
       <div class="brand">Post Compass</div>
+      <div>
+        <button id="tabCompose" class="ghost" style="margin-right:6px">Compose</button>
+        <button id="tabHistory" class="ghost">History</button>
+      </div>
       <button id="sidebarClose" class="close-btn" title="Close">×</button>
     </header>
 
     <main>
+      <section id="composeView">
       <label class="label" for="modelSelect">Model</label>
       <select id="modelSelect" class="select"></select>
+      <label class="label" for="toneSelect" style="margin-top:8px;">Tone</label>
+      <select id="toneSelect" class="select">
+        <option value="Auto">Auto (recommended)</option>
+        <option value="Professional">Professional</option>
+        <option value="Casual">Casual</option>
+        <option value="Friendly">Friendly</option>
+        <option value="Persuasive">Persuasive</option>
+      </select>
 
       <label class="label" for="thoughtInput" style="margin-top:8px;">Your raw thought</label>
       <textarea id="thoughtInput" placeholder="Drop a rough idea, draft, or question..."></textarea>
@@ -29,9 +42,14 @@
             <span><strong>X (Twitter)</strong></span>
             <span class="char-count" id="twitterCount">0/256</span>
           </div>
-          <div class="text" id="twitterText"></div>
+          <textarea id="twitterText" class="text" style="min-height:90px"></textarea>
+          <div style="display:flex; gap:6px; margin-top:6px; align-items:center;">
+            <input id="twitterRefine" class="select" placeholder="Refine this draft (e.g., make punchier, add 1 hashtag)" />
+            <button id="twitterRefineBtn" class="ghost" style="white-space:nowrap;">Refine</button>
+            <button id="twitterPrev" class="ghost">◀</button>
+            <button id="twitterNext" class="ghost">▶</button>
+          </div>
           <div class="actions">
-            <button id="fillTwitter" class="ghost">Fill X</button>
             <button id="copyTwitter" class="ghost">Copy</button>
           </div>
         </div>
@@ -41,9 +59,14 @@
             <span><strong>LinkedIn</strong></span>
             <span class="char-count" id="linkedinCount">0/3000</span>
           </div>
-          <div class="text" id="linkedinText"></div>
+          <textarea id="linkedinText" class="text" style="min-height:120px"></textarea>
+          <div style="display:flex; gap:6px; margin-top:6px; align-items:center;">
+            <input id="linkedinRefine" class="select" placeholder="Refine this draft (e.g., more professional, add CTA)" />
+            <button id="linkedinRefineBtn" class="ghost" style="white-space:nowrap;">Refine</button>
+            <button id="linkedinPrev" class="ghost">◀</button>
+            <button id="linkedinNext" class="ghost">▶</button>
+          </div>
           <div class="actions">
-            <button id="fillLinkedIn" class="ghost">Fill LinkedIn</button>
             <button id="copyLinkedIn" class="ghost">Copy</button>
           </div>
         </div>
@@ -54,12 +77,18 @@
             <span class="char-count" id="redditCounts">title 0/300 • body 0/40000</span>
           </div>
           <div class="text">
-            <div><strong>Title:</strong> <span id="redditTitle"></span></div>
+            <div><strong>Title:</strong></div>
+            <input id="redditTitle" class="select" placeholder="Reddit title" />
             <div style="margin-top:6px;"><strong>Body:</strong></div>
-            <div id="redditBody" class="text"></div>
+            <textarea id="redditBody" class="text" style="min-height:120px"></textarea>
+          </div>
+          <div style="display:flex; gap:6px; margin-top:6px; align-items:center;">
+            <input id="redditRefine" class="select" placeholder="Refine this draft (e.g., add context, friendlier tone)" />
+            <button id="redditRefineBtn" class="ghost" style="white-space:nowrap;">Refine</button>
+            <button id="redditPrev" class="ghost">◀</button>
+            <button id="redditNext" class="ghost">▶</button>
           </div>
           <div class="actions">
-            <button id="fillReddit" class="ghost">Fill Reddit</button>
             <button id="copyReddit" class="ghost">Copy</button>
           </div>
         </div>
@@ -77,7 +106,9 @@
         <div class="section-title">Suggested communities</div>
         <ul id="suggestionsList"></ul>
       </div>
+      </section>
 
+      <section id="historyView" class="hidden">
       <div id="historySection" class="card hidden">
         <div class="section-title">History</div>
         <ul id="historyList"></ul>
@@ -85,6 +116,7 @@
           <button id="clearHistory" class="ghost">Clear</button>
         </div>
       </div>
+      </section>
     </main>
 
     <footer class="footer">

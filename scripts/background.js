@@ -1,5 +1,4 @@
 import { generatePlatformDrafts } from './services/ai.js';
-import { suggestCommunities } from './services/suggester.js';
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Post Compass installed');
@@ -44,91 +43,12 @@ function waitForTabLoad(tabId) {
   });
 }
 
-// Show notification
-function showNotification(message) {
-  chrome.notifications.create({
-    type: 'basic',
-    iconUrl: chrome.runtime.getURL('icon.png'),
-    title: 'Post Compass',
-    message: message,
-    priority: 2
-  });
-}
-
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const handleMessage = async () => {
     try {
       if (message?.type === 'rewrite') {
-        const drafts = await generatePlatformDrafts(message.text || '', { model: message.model });
+        const drafts = await generatePlatformDrafts(message.text || '', { model: message.model, tone: message.tone || 'Auto' });
         sendResponse({ ok: true, data: drafts });
-        return;
-      }
-
-      if (message?.type === 'suggest') {
-        const suggestions = suggestCommunities(message.text || '');
-        sendResponse({ ok: true, data: suggestions });
-        return;
-      }
-
-      // Handle fill requests with navigation
-      if (message?.type === 'fillTwitter' || message?.type === 'fillLinkedIn' || message?.type === 'fillReddit') {
-        const platform = message.type.replace('fill', '').toLowerCase();
-        
-        // Get the current active tab
-        const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        
-        if (!activeTab) {
-          sendResponse({ ok: false, error: 'No active tab found' });
-          return;
-        }
-        
-        // Check if we're already on the platform
-        const onPlatform = isOnPlatform(activeTab.url, platform);
-        
-        if (!onPlatform) {
-          // Navigate to the platform
-          await chrome.tabs.update(activeTab.id, { url: PLATFORM_URLS[platform] });
-          // Wait for the page to load
-          await waitForTabLoad(activeTab.id);
-          // Give the page a moment to fully render
-          await new Promise(resolve => setTimeout(resolve, 1500));
-        }
-        
-        // Now inject the content
-        try {
-          const response = await chrome.tabs.sendMessage(activeTab.id, message);
-          
-          if (response?.success) {
-            // Show success notification
-            let platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
-            if (platform === 'twitter') platformName = 'X/Twitter';
-            showNotification(`Content has been filled on ${platformName}. Please review before posting.`);
-          } else {
-            showNotification(`Could not fill content. Please try again.`);
-          }
-          
-          sendResponse({ ok: true, data: response });
-        } catch (e) {
-          // If content script isn't ready, inject it
-          await chrome.scripting.executeScript({
-            target: { tabId: activeTab.id },
-            files: ['scripts/content.js']
-          });
-          
-          // Try again after injection
-          await new Promise(resolve => setTimeout(resolve, 500));
-          const response = await chrome.tabs.sendMessage(activeTab.id, message);
-          
-          if (response?.success) {
-            let platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
-            if (platform === 'twitter') platformName = 'X/Twitter';
-            showNotification(`Content has been filled on ${platformName}. Please review before posting.`);
-          } else {
-            showNotification(`Could not fill content. Please try again.`);
-          }
-          
-          sendResponse({ ok: true, data: response });
-        }
         return;
       }
 

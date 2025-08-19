@@ -1,5 +1,5 @@
-import { fetchAvailableModels, generatePlatformDrafts, PLATFORM_LIMITS } from './services/ai.js';
-import { suggestCommunities } from './services/suggester.js';
+import { fetchAvailableModels, generatePlatformDrafts, PLATFORM_LIMITS, refinePlatformDraft } from './services/ai.js';
+import { suggestCommunitiesAI } from './services/suggester.js';
 
 const thoughtInput = document.getElementById('thoughtInput');
 const modelSelect = document.getElementById('modelSelect');
@@ -18,9 +18,18 @@ const redditCounts = document.getElementById('redditCounts');
 const copyTwitter = document.getElementById('copyTwitter');
 const copyLinkedIn = document.getElementById('copyLinkedIn');
 const copyReddit = document.getElementById('copyReddit');
-const fillTwitter = document.getElementById('fillTwitter');
-const fillLinkedIn = document.getElementById('fillLinkedIn');
-const fillReddit = document.getElementById('fillReddit');
+const twitterRefine = document.getElementById('twitterRefine');
+const twitterRefineBtn = document.getElementById('twitterRefineBtn');
+const twitterPrev = document.getElementById('twitterPrev');
+const twitterNext = document.getElementById('twitterNext');
+const linkedinRefine = document.getElementById('linkedinRefine');
+const linkedinRefineBtn = document.getElementById('linkedinRefineBtn');
+const linkedinPrev = document.getElementById('linkedinPrev');
+const linkedinNext = document.getElementById('linkedinNext');
+const redditRefine = document.getElementById('redditRefine');
+const redditRefineBtn = document.getElementById('redditRefineBtn');
+const redditPrev = document.getElementById('redditPrev');
+const redditNext = document.getElementById('redditNext');
 
 const navTwitter = document.getElementById('navTwitter');
 const navLinkedIn = document.getElementById('navLinkedIn');
@@ -33,6 +42,14 @@ const suggestionsList = document.getElementById('suggestionsList');
 const historySection = document.getElementById('historySection');
 const historyList = document.getElementById('historyList');
 const clearHistoryBtn = document.getElementById('clearHistory');
+const composeView = document.getElementById('composeView');
+const historyView = document.getElementById('historyView');
+const tabCompose = document.getElementById('tabCompose');
+const tabHistory = document.getElementById('tabHistory');
+const toneSelect = document.getElementById('toneSelect');
+let currentTone = 'Auto';
+const versions = { twitter: [], linkedin: [], reddit: [] };
+let versionIndex = { twitter: -1, linkedin: -1, reddit: -1 };
 
 function setLoading(button, isLoading) {
   if (isLoading) {
@@ -47,15 +64,15 @@ function setLoading(button, isLoading) {
 
 function updateCounter(el, countEl, limit) {
   if (!el || !countEl) return;
-  const len = (el.textContent || '').length;
+  const len = ('value' in el ? (el.value || '') : (el.textContent || '')).length;
   countEl.textContent = `${len}/${limit}`;
   countEl.style.color = len > limit ? '#dc2626' : '';
 }
 
 function updateRedditCounts() {
   if (!redditTitleEl || !redditBodyEl || !redditCounts) return;
-  const titleLen = (redditTitleEl.textContent || '').length;
-  const bodyLen = (redditBodyEl.textContent || '').length;
+  const titleLen = (redditTitleEl.value || '').length;
+  const bodyLen = (redditBodyEl.value || '').length;
   redditCounts.textContent = `title ${titleLen}/${PLATFORM_LIMITS.redditTitle} • body ${bodyLen}/${PLATFORM_LIMITS.redditBody}`;
   redditCounts.style.color = (titleLen > PLATFORM_LIMITS.redditTitle || bodyLen > PLATFORM_LIMITS.redditBody) ? '#dc2626' : '';
 }
@@ -155,14 +172,16 @@ function renderHistory(items) {
     li.querySelector('[data-action="restore"]').addEventListener('click', (e) => {
       e.preventDefault();
       thoughtInput.value = item.raw;
-      twitterTextEl.textContent = item.drafts.twitter.text;
-      linkedinTextEl.textContent = item.drafts.linkedin.text;
-      redditTitleEl.textContent = item.drafts.reddit.title;
-      redditBodyEl.textContent = item.drafts.reddit.body;
+      twitterTextEl.value = item.drafts.twitter.text;
+      linkedinTextEl.value = item.drafts.linkedin.text;
+      redditTitleEl.value = item.drafts.reddit.title;
+      redditBodyEl.value = item.drafts.reddit.body;
       updateCounter(twitterTextEl, twitterCount, PLATFORM_LIMITS.twitter);
       updateCounter(linkedinTextEl, linkedinCount, PLATFORM_LIMITS.linkedin);
       updateRedditCounts();
       platformDrafts.classList.remove('hidden');
+      setInitialVersions(item.drafts);
+      switchToCompose();
     });
     historyList.appendChild(li);
   }
@@ -198,12 +217,12 @@ rewriteBtn.addEventListener('click', async () => {
   setLoading(rewriteBtn, true);
   try {
     const model = modelSelect.value;
-    const drafts = await generatePlatformDrafts(raw, { model });
+    const drafts = await generatePlatformDrafts(raw, { model, tone: currentTone });
 
-    twitterTextEl.textContent = drafts.twitter.text || '';
-    linkedinTextEl.textContent = drafts.linkedin.text || '';
-    redditTitleEl.textContent = drafts.reddit.title || '';
-    redditBodyEl.textContent = drafts.reddit.body || '';
+    twitterTextEl.value = drafts.twitter.text || '';
+    linkedinTextEl.value = drafts.linkedin.text || '';
+    redditTitleEl.value = drafts.reddit.title || '';
+    redditBodyEl.value = drafts.reddit.body || '';
 
     updateCounter(twitterTextEl, twitterCount, PLATFORM_LIMITS.twitter);
     updateCounter(linkedinTextEl, linkedinCount, PLATFORM_LIMITS.linkedin);
@@ -236,7 +255,7 @@ clearHistoryBtn.addEventListener('click', async () => {
 
 // Copy handlers
 copyTwitter.addEventListener('click', async () => {
-  const t = twitterTextEl.textContent.trim();
+  const t = (twitterTextEl.value || '').trim();
   if (!t) return;
   if (navigator.clipboard && navigator.clipboard.writeText) {
     await navigator.clipboard.writeText(t);
@@ -248,7 +267,7 @@ copyTwitter.addEventListener('click', async () => {
 });
 
 copyLinkedIn.addEventListener('click', async () => {
-  const t = linkedinTextEl.textContent.trim();
+  const t = (linkedinTextEl.value || '').trim();
   if (!t) return;
   if (navigator.clipboard && navigator.clipboard.writeText) {
     await navigator.clipboard.writeText(t);
@@ -260,8 +279,8 @@ copyLinkedIn.addEventListener('click', async () => {
 });
 
 copyReddit.addEventListener('click', async () => {
-  const title = redditTitleEl.textContent.trim();
-  const body = redditBodyEl.textContent.trim();
+  const title = (redditTitleEl.value || '').trim();
+  const body = (redditBodyEl.value || '').trim();
   const content = title ? `${title}\n\n${body}` : body;
   if (!content) return;
   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -273,61 +292,60 @@ copyReddit.addEventListener('click', async () => {
   setTimeout(() => (copyReddit.textContent = 'Copy'), 1200);
 });
 
-// Fill handlers (DOM injection)
-fillTwitter.addEventListener('click', async () => {
-  const text = twitterTextEl.textContent.trim();
-  if (!text) return;
-  try {
-    if (chrome?.runtime?.sendMessage) {
-      await chrome.runtime.sendMessage({ type: 'fillTwitter', text });
-      fillTwitter.textContent = 'Filled!';
-      setTimeout(() => (fillTwitter.textContent = 'Fill X'), 1200);
-    } else {
-      console.warn('Chrome runtime not available');
-    }
-  } catch (e) {
-    console.error('Fill Twitter failed:', e);
-    fillTwitter.textContent = 'Failed';
-    setTimeout(() => (fillTwitter.textContent = 'Fill X'), 1200);
-  }
-});
+// Versioning helpers
+function setInitialVersions(drafts){
+  versions.twitter = [drafts.twitter.text]; versionIndex.twitter = 0;
+  versions.linkedin = [drafts.linkedin.text]; versionIndex.linkedin = 0;
+  versions.reddit = [{title: drafts.reddit.title, body: drafts.reddit.body}]; versionIndex.reddit = 0;
+}
+function pushVersion(platform, value){
+  const stack = versions[platform];
+  stack.push(value); while (stack.length>10) stack.shift();
+  versionIndex[platform] = stack.length-1;
+}
+function showVersion(platform, delta){
+  const stack = versions[platform]; if(!stack.length) return;
+  versionIndex[platform] = Math.max(0, Math.min(stack.length-1, versionIndex[platform]+delta));
+  const v = stack[versionIndex[platform]];
+  if(platform==='twitter'){ twitterTextEl.value = v; updateCounter(twitterTextEl, twitterCount, PLATFORM_LIMITS.twitter); }
+  else if(platform==='linkedin'){ linkedinTextEl.value = v; updateCounter(linkedinTextEl, linkedinCount, PLATFORM_LIMITS.linkedin); }
+  else { redditTitleEl.value = v.title; redditBodyEl.value = v.body; updateRedditCounts(); }
+}
 
-fillLinkedIn.addEventListener('click', async () => {
-  const text = linkedinTextEl.textContent.trim();
-  if (!text) return;
-  try {
-    if (chrome?.runtime?.sendMessage) {
-      await chrome.runtime.sendMessage({ type: 'fillLinkedIn', text });
-      fillLinkedIn.textContent = 'Filled!';
-      setTimeout(() => (fillLinkedIn.textContent = 'Fill LinkedIn'), 1200);
-    } else {
-      console.warn('Chrome runtime not available');
-    }
-  } catch (e) {
-    console.error('Fill LinkedIn failed:', e);
-    fillLinkedIn.textContent = 'Failed';
-    setTimeout(() => (fillLinkedIn.textContent = 'Fill LinkedIn'), 1200);
-  }
+// Refine handlers
+twitterRefineBtn.addEventListener('click', async () => {
+  const current = (twitterTextEl.value||'').trim(); if(!current) return;
+  setLoading(twitterRefineBtn,true);
+  try{
+    const model = modelSelect.value;
+    const refined = await refinePlatformDraft('twitter', current, (twitterRefine.value||'').trim(), thoughtInput.value.trim(), { model, tone: currentTone });
+    twitterTextEl.value = refined.text || current; updateCounter(twitterTextEl, twitterCount, PLATFORM_LIMITS.twitter); pushVersion('twitter', twitterTextEl.value);
+  } finally { setLoading(twitterRefineBtn,false);} 
 });
-
-fillReddit.addEventListener('click', async () => {
-  const title = redditTitleEl.textContent.trim();
-  const body = redditBodyEl.textContent.trim();
-  if (!title && !body) return;
-  try {
-    if (chrome?.runtime?.sendMessage) {
-      await chrome.runtime.sendMessage({ type: 'fillReddit', title, body });
-      fillReddit.textContent = 'Filled!';
-      setTimeout(() => (fillReddit.textContent = 'Fill Reddit'), 1200);
-    } else {
-      console.warn('Chrome runtime not available');
-    }
-  } catch (e) {
-    console.error('Fill Reddit failed:', e);
-    fillReddit.textContent = 'Failed';
-    setTimeout(() => (fillReddit.textContent = 'Fill Reddit'), 1200);
-  }
+linkedinRefineBtn.addEventListener('click', async () => {
+  const current = (linkedinTextEl.value||'').trim(); if(!current) return;
+  setLoading(linkedinRefineBtn,true);
+  try{
+    const model = modelSelect.value;
+    const refined = await refinePlatformDraft('linkedin', current, (linkedinRefine.value||'').trim(), thoughtInput.value.trim(), { model, tone: currentTone });
+    linkedinTextEl.value = refined.text || current; updateCounter(linkedinTextEl, linkedinCount, PLATFORM_LIMITS.linkedin); pushVersion('linkedin', linkedinTextEl.value);
+  } finally { setLoading(linkedinRefineBtn,false);} 
 });
+redditRefineBtn.addEventListener('click', async () => {
+  const current = { title: (redditTitleEl.value||'').trim(), body: (redditBodyEl.value||'').trim() }; if(!current.title && !current.body) return;
+  setLoading(redditRefineBtn,true);
+  try{
+    const model = modelSelect.value;
+    const refined = await refinePlatformDraft('reddit', current, (redditRefine.value||'').trim(), thoughtInput.value.trim(), { model, tone: currentTone });
+    redditTitleEl.value = refined.title || current.title; redditBodyEl.value = refined.body || current.body; updateRedditCounts(); pushVersion('reddit', {title: redditTitleEl.value, body: redditBodyEl.value});
+  } finally { setLoading(redditRefineBtn,false);} 
+});
+twitterPrev.addEventListener('click', ()=>showVersion('twitter',-1));
+twitterNext.addEventListener('click', ()=>showVersion('twitter',+1));
+linkedinPrev.addEventListener('click', ()=>showVersion('linkedin',-1));
+linkedinNext.addEventListener('click', ()=>showVersion('linkedin',+1));
+redditPrev.addEventListener('click', ()=>showVersion('reddit',-1));
+redditNext.addEventListener('click', ()=>showVersion('reddit',+1));
 
 // Navigation handlers - open URLs in current tab
 navTwitter.addEventListener('click', () => {
@@ -366,24 +384,41 @@ sidebarClose.addEventListener('click', () => {
 });
 
 findBtn.addEventListener('click', async () => {
-  const combined = [twitterTextEl.textContent, linkedinTextEl.textContent, redditTitleEl.textContent, redditBodyEl.textContent]
+  const combined = [twitterTextEl.value, linkedinTextEl.value, redditTitleEl.value, redditBodyEl.value]
     .filter(Boolean)
     .join(' ')
     .trim() || thoughtInput.value.trim();
   if (!combined) return;
   setLoading(findBtn, true);
   try {
-    const suggestions = suggestCommunities(combined, 8);
+    const model = modelSelect.value;
+    const ai = await suggestCommunitiesAI(combined, { model });
     suggestionsList.innerHTML = '';
-    for (const s of suggestions) {
-      const li = document.createElement('li');
-      li.innerHTML = `
-        <div>
-          <strong>${s.platform}</strong>: <a href="${s.url}" target="_blank" rel="noopener noreferrer">${s.display}</a>
-          <div class="muted" style="margin-top:4px; font-size:12px;">${s.reason}</div>
-        </div>
-      `;
-      suggestionsList.appendChild(li);
+    if ((ai.hashtags || []).length) {
+      const h = document.createElement('li');
+      h.innerHTML = `<div><strong>X Hashtags</strong></div>`;
+      const ul = document.createElement('ul');
+      for (const tag of ai.hashtags) {
+        const li = document.createElement('li');
+        const url = `https://x.com/hashtag/${encodeURIComponent(tag.tag.replace('#',''))}`;
+        li.innerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer">${tag.tag}</a> <span class="muted">${Math.round((tag.score||0)*100)}%</span><div class="muted" style="font-size:12px;">${tag.reason||''}</div>`;
+        ul.appendChild(li);
+      }
+      h.appendChild(ul);
+      suggestionsList.appendChild(h);
+    }
+    if ((ai.subreddits || []).length) {
+      const h = document.createElement('li');
+      h.innerHTML = `<div><strong>Reddit Subreddits</strong></div>`;
+      const ul = document.createElement('ul');
+      for (const sr of ai.subreddits) {
+        const li = document.createElement('li');
+        const url = `https://www.reddit.com/${sr.name.replace(/^\/?/, '')}`;
+        li.innerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer">${sr.name}</a> <span class="muted">${Math.round((sr.score||0)*100)}%</span><div class="muted" style="font-size:12px;">${sr.reason||''}</div>`;
+        ul.appendChild(li);
+      }
+      h.appendChild(ul);
+      suggestionsList.appendChild(h);
     }
     suggestionsSection.classList.remove('hidden');
   } finally {
@@ -399,3 +434,15 @@ modelSelect.addEventListener('change', async () => {
 // Initialize
 initModels();
 loadHistory().then(renderHistory);
+
+// Live counters on edit and tone control
+twitterTextEl.addEventListener('input', () => updateCounter(twitterTextEl, twitterCount, PLATFORM_LIMITS.twitter));
+linkedinTextEl.addEventListener('input', () => updateCounter(linkedinTextEl, linkedinCount, PLATFORM_LIMITS.linkedin));
+redditTitleEl.addEventListener('input', updateRedditCounts);
+redditBodyEl.addEventListener('input', updateRedditCounts);
+if (toneSelect) toneSelect.addEventListener('change', () => { currentTone = toneSelect.value; });
+
+function switchToCompose(){ composeView.classList.remove('hidden'); historyView.classList.add('hidden'); }
+function switchToHistory(){ composeView.classList.add('hidden'); historyView.classList.remove('hidden'); }
+if (tabCompose) tabCompose.addEventListener('click', switchToCompose);
+if (tabHistory) tabHistory.addEventListener('click', async () => { const history = await loadHistory(); renderHistory(history); switchToHistory(); });

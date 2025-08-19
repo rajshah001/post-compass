@@ -9,27 +9,15 @@
   "side_panel": {
     "default_path": "sidebar.html"
   },
-  "permissions": ["storage", "activeTab", "scripting", "clipboardWrite", "sidePanel", "tabs", "notifications"],
+  "permissions": ["storage", "activeTab", "clipboardWrite", "sidePanel", "tabs"],
   "host_permissions": [
-    "https://text.pollinations.ai/*",
-    "https://www.linkedin.com/*",
-    "https://linkedin.com/*",
-    "https://www.reddit.com/*",
-    "https://reddit.com/*",
-    "https://x.com/*",
-    "https://twitter.com/*"
+    "https://text.pollinations.ai/*"
   ],
   "background": {
     "service_worker": "scripts/background.js",
     "type": "module"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["scripts/content.js"],
-      "run_at": "document_idle"
-    }
-  ],
+  
   "web_accessible_resources": [
     {
       "resources": ["sidebar.html", "styles/sidebar.css", "scripts/sidebar.js", "scripts/services/ai.js", "scripts/services/suggester.js"],

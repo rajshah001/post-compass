@@ -12,7 +12,7 @@ export const PLATFORM_LIMITS = {
   redditBody: 40000
 };
 
-function buildSystemPrompt() {
+function buildSystemPrompt(tone = 'Auto') {
   return (
     'You are an expert social media writing assistant for X (Twitter), LinkedIn, and Reddit. ' +
     'You know each platform\'s virality mechanics and ranking algorithms and will shape content accordingly.\n' +
@@ -20,19 +20,19 @@ function buildSystemPrompt() {
     'General principles:\n' +
     '- Preserve the original meaning and factual claims.\n' +
     '- Be engaging and natural. Avoid clickbait and false claims.\n' +
-    '- Use plain language and strong hooks.\n' +
+    `- Use plain language and strong hooks. Adopt tone: ${tone}. If "Auto", pick the most suitable.\n` +
     '\n' +
     'Platform guidance:\n' +
     'X (Twitter):\n' +
     '- Max length 256 characters. Lead with a strong hook in the first line.\n' +
     '- Use short sentences and line breaks for scannability.\n' +
-    '- Use 0–2 highly relevant hashtags. Avoid excessive emojis and links up front.\n' +
+    '- Let the model decide 0–2 highly relevant hashtags. Avoid excessive emojis and links up front.\n' +
     '- Invite engagement with a concise question or call to action if appropriate.\n' +
     '\n' +
     'LinkedIn:\n' +
     '- Max length 3000 characters. Professional, value-led tone with concrete insights.\n' +
     '- Start with a punchy 1–2 line hook, then 2–6 short lines/paragraphs, optionally bullets.\n' +
-    '- Use 1–5 relevant hashtags at the end. Avoid overly casual slang or excessive emojis.\n' +
+    '- Let the model decide 1–5 relevant hashtags at the end. Avoid overly casual slang or excessive emojis.\n' +
     '- Encourage comments with a thoughtful question.\n' +
     '\n' +
     'Reddit:\n' +
@@ -44,11 +44,12 @@ function buildSystemPrompt() {
   );
 }
 
-function buildUserPrompt(rawText) {
+function buildUserPrompt(rawText, extra = '') {
   return (
     'Rewrite the following text into platform-specific drafts for X (Twitter), LinkedIn, and Reddit. ' +
     'Keep meaning intact and tailor for each platform\'s algorithm and norms.\n' +
     `Original text:\n${rawText}\n\n` +
+    (extra ? `Extra guidance:\n${extra}\n\n` : '') +
     'Output STRICT JSON with keys "twitter", "linkedin", "reddit".\n' +
     '- twitter: { "text": string }\n' +
     '- linkedin: { "text": string }\n' +
@@ -174,9 +175,10 @@ export async function fetchAvailableModels() {
 export async function generatePlatformDrafts(rawText, opts = {}) {
   const baseUrl = opts.baseUrl || DEFAULTS.baseUrl;
   const model = opts.model || DEFAULTS.defaultModel;
+  const tone = opts.tone || 'Auto';
   const apiKey = opts.apiKey || undefined;
 
-  const systemPrompt = buildSystemPrompt();
+  const systemPrompt = buildSystemPrompt(tone);
   const userPrompt = buildUserPrompt(rawText);
 
   let drafts;
@@ -192,6 +194,48 @@ export async function generatePlatformDrafts(rawText, opts = {}) {
   drafts.reddit.body = truncateToLimit(drafts.reddit.body, PLATFORM_LIMITS.redditBody);
 
   return drafts;
+}
+
+export async function refinePlatformDraft(platform, currentDraft, instructions, rawText, opts = {}) {
+  const baseUrl = opts.baseUrl || DEFAULTS.baseUrl;
+  const model = opts.model || DEFAULTS.defaultModel;
+  const tone = opts.tone || 'Auto';
+  const apiKey = opts.apiKey || undefined;
+
+  const systemPrompt = buildSystemPrompt(tone);
+  const platformKey = platform.toLowerCase();
+  const constraints = platformKey === 'twitter'
+    ? `Keep within ${PLATFORM_LIMITS.twitter} characters.`
+    : platformKey === 'linkedin'
+      ? `Keep within ${PLATFORM_LIMITS.linkedin} characters.`
+      : `Reddit: title <= ${PLATFORM_LIMITS.redditTitle}, body <= ${PLATFORM_LIMITS.redditBody}.`;
+
+  const instructionBlock = (instructions || '').trim() ? `User refinement instructions: ${instructions}` : 'Refine to improve clarity and engagement while preserving meaning.';
+
+  const userPrompt = (
+    `Refine ONLY the ${platform} draft below given the original thought and instructions.\n` +
+    `Original thought:\n${rawText}\n\n` +
+    `Current ${platform} draft:\n${typeof currentDraft === 'string' ? currentDraft : JSON.stringify(currentDraft)}\n\n` +
+    `${instructionBlock}\n${constraints}\n` +
+    (platformKey === 'reddit'
+      ? 'Return STRICT JSON: {"reddit": {"title": string, "body": string}}'
+      : `Return STRICT JSON: {"${platformKey}": {"text": string}}`)
+  );
+
+  try {
+    const data = await callOpenAICompatible(baseUrl, model, userPrompt, systemPrompt, apiKey);
+    if (platformKey === 'reddit') return { title: data.reddit.title, body: data.reddit.body };
+    return { text: data[platformKey].text };
+  } catch (_) {
+    // Fallback: simple append refinement
+    if (platformKey === 'reddit') {
+      const title = typeof currentDraft === 'object' ? currentDraft.title : '';
+      const body = typeof currentDraft === 'object' ? currentDraft.body : '';
+      return { title, body: `${body}\n\n[Refined: ${instructions}]` };
+    }
+    const text = (typeof currentDraft === 'string' ? currentDraft : currentDraft?.text || '') + (instructions ? `\n\n[Refined: ${instructions}]` : '');
+    return { text };
+  }
 }
 
 

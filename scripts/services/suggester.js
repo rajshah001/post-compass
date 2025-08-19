@@ -70,29 +70,64 @@ const TOPIC_MAP = [
   }
 ];
 
-export function suggestCommunities(text, max = 8) {
-  if (!text) return [];
-  const results = [];
-  for (const entry of TOPIC_MAP) {
-    if (anyKeywordIn(text, entry.keywords)) {
-      results.push(...entry.suggestions);
-    }
+export async function suggestCommunitiesAI(text, opts = {}) {
+  if (!text) return { hashtags: [], subreddits: [] };
+  const baseUrl = (opts.baseUrl || 'https://text.pollinations.ai').replace(/\/$/, '');
+  const model = opts.model || 'gpt-5-nano';
+  const system = `You suggest highly relevant X hashtags and Reddit subreddits for a given content idea. Return strict JSON with two arrays: 
+  - hashtags: items like {"tag": "#3DPrinting", "score": 0.91, "reason": "why"}
+  - subreddits: items like {"name": "r/3Dprinting", "score": 0.88, "reason": "why"}
+Rank by score descending. Prefer specificity over generic. Include 3-6 items per array if possible.`;
+  const user = `Content:\n${text}\n\nReturn only JSON.`;
+
+  try {
+    const res = await fetch(`${baseUrl}/openai/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        temperature: 0.3,
+        max_tokens: 400,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user }
+        ]
+      })
+    });
+    if (!res.ok) throw new Error(`pollinations failed: ${res.status}`);
+    const json = await res.json();
+    const content = json?.choices?.[0]?.message?.content?.trim();
+    if (!content) throw new Error('empty content');
+    const data = JSON.parse(content);
+    const hashtags = Array.isArray(data.hashtags) ? data.hashtags : [];
+    const subreddits = Array.isArray(data.subreddits) ? data.subreddits : [];
+    // Normalize fields
+    const normHash = hashtags
+      .map(h => ({
+        tag: (h.tag || h.hashtag || h.name || '').toString().startsWith('#') ? (h.tag || h.hashtag || h.name) : `#${h.tag || h.hashtag || h.name}`,
+        score: typeof h.score === 'number' ? h.score : 0.5,
+        reason: h.reason || ''
+      }))
+      .filter(h => h.tag && h.tag.length <= 40)
+      .slice(0, 8);
+    const normSubs = subreddits
+      .map(s => ({
+        name: (s.name || s.subreddit || '').toString().startsWith('r/') ? (s.name || s.subreddit) : `r/${s.name || s.subreddit}`,
+        score: typeof s.score === 'number' ? s.score : 0.5,
+        reason: s.reason || ''
+      }))
+      .filter(s => s.name && s.name.length <= 50)
+      .slice(0, 8);
+    // Sort by score
+    normHash.sort((a, b) => b.score - a.score);
+    normSubs.sort((a, b) => b.score - a.score);
+    return { hashtags: normHash, subreddits: normSubs };
+  } catch (e) {
+    console.warn('suggestCommunitiesAI fallback due to error:', e);
+    // Graceful fallback to static
+    return { hashtags: [], subreddits: [] };
   }
-  if (results.length === 0) {
-    results.push(
-      { platform: 'Reddit', type: 'subreddit', display: 'r/findareddit', url: 'https://www.reddit.com/r/findareddit/', reason: 'Ask for niche subreddit recommendations' },
-      { platform: 'Reddit', type: 'subreddit', display: 'r/CasualConversation', url: 'https://www.reddit.com/r/CasualConversation/', reason: 'General audience feedback' },
-      { platform: 'X', type: 'hashtag', display: '#AskTwitter', url: 'https://x.com/hashtag/AskTwitter', reason: 'Gather broad feedback on X' }
-    );
-  }
-  // Deduplicate by URL and cap
-  const seen = new Set();
-  const unique = [];
-  for (const s of results) {
-    if (seen.has(s.url)) continue;
-    seen.add(s.url);
-    unique.push(s);
-    if (unique.length >= max) break;
-  }
-  return unique;
 }
+
+// Backward-compat exported name (no longer used in UI)
+export function suggestCommunities() { return []; }
