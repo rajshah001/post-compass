@@ -156,6 +156,18 @@ async function callOpenAICompatible(baseUrl, model, userPrompt, systemPrompt, ap
     }
     return normalized;
   } catch (_) {
+    // If model returned a blob like {"twitter":..., "linkedin":...} as plain text, extract text fields via regex
+    const twitterTextMatch = content.match(/"twitter"\s*:\s*\{\s*"text"\s*:\s*"([\s\S]*?)"\s*\}/i);
+    const linkedinTextMatch = content.match(/"linkedin"\s*:\s*\{\s*"text"\s*:\s*"([\s\S]*?)"\s*\}/i);
+    const redditTitleMatch = content.match(/"reddit"\s*:\s*\{[\s\S]*?"title"\s*:\s*"([\s\S]*?)"/i);
+    const redditBodyMatch = content.match(/"reddit"\s*:\s*\{[\s\S]*?"body"\s*:\s*"([\s\S]*?)"/i);
+    if (twitterTextMatch || linkedinTextMatch || redditTitleMatch || redditBodyMatch) {
+      return normalizeDrafts({
+        twitter: { text: twitterTextMatch ? twitterTextMatch[1] : content },
+        linkedin: { text: linkedinTextMatch ? linkedinTextMatch[1] : content },
+        reddit: { title: redditTitleMatch ? redditTitleMatch[1] : '', body: redditBodyMatch ? redditBodyMatch[1] : content }
+      });
+    }
     const derived = splitIntoRedditTitleBody(content);
     return normalizeDrafts({ twitter: { text: content }, linkedin: { text: content }, reddit: derived });
   }

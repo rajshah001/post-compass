@@ -298,15 +298,37 @@ rewriteBtn.addEventListener('click', async () => {
       body: (v && typeof v.body === 'string') ? v.body : ''
     });
 
-    // Defensive normalization in case model returns raw JSON string
+    // Defensive normalization in case model returns raw/loose JSON in any field
+    const parseLooseJson = (text) => {
+      try { return JSON.parse(text); } catch(_) { /* try to coerce */ }
+      try {
+        let loose = text;
+        // Extract content inside first braces if extra prose exists
+        const braceMatch = text.match(/\{[\s\S]*\}/);
+        if (braceMatch) loose = braceMatch[0];
+        // Replace single quotes with double quotes
+        loose = loose.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, '"$1"');
+        // Quote unquoted object keys
+        loose = loose.replace(/(?<!")([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '"$1":');
+        // Remove trailing commas
+        loose = loose.replace(/,\s*(\}|\])/g, '$1');
+        return JSON.parse(loose);
+      } catch(_) { return null; }
+    };
+
+    const extractTextByRegex = (text) => {
+      // Try to pull out the first "text": "..." occurrence
+      const m = text.match(/"text"\s*:\s*"([\s\S]*?)"\s*(?:[,}\n])/);
+      return m ? m[1] : text;
+    };
+
     const coerceText = (val) => {
       if (typeof val === 'string') {
-        // Strip obvious JSON-like wrappers
-        if (val.trim().startsWith('{') || val.trim().startsWith('[')) {
-          try {
-            const obj = JSON.parse(val);
-            return toText(obj.twitter || obj.linkedin || obj) || val;
-          } catch { /* leave as-is */ }
+        const trimmed = val.trim();
+        if (trimmed.startsWith('{') || trimmed.startsWith('[') || /"twitter"|"linkedin"|"reddit"/.test(trimmed)) {
+          const obj = parseLooseJson(trimmed);
+          if (obj) return toText(obj.twitter || obj.linkedin || obj) || extractTextByRegex(trimmed);
+          return extractTextByRegex(trimmed);
         }
         return val;
       }
@@ -314,7 +336,9 @@ rewriteBtn.addEventListener('click', async () => {
     };
     const coerceReddit = (val) => {
       if (typeof val === 'string') {
-        try { const obj = JSON.parse(val); return toReddit(obj.reddit || obj); } catch { return { title: '', body: val }; }
+        const obj = parseLooseJson(val);
+        if (obj) return toReddit(obj.reddit || obj);
+        return { title: '', body: val };
       }
       return toReddit(val);
     };
