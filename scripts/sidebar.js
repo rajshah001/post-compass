@@ -292,10 +292,20 @@ rewriteBtn.addEventListener('click', async () => {
     // Step 2: generate using research + topic
     const drafts = await generateFromResearch(raw, research, { model, tone: currentTone });
 
-    twitterTextEl.value = drafts.twitter.text || '';
-    linkedinTextEl.value = drafts.linkedin.text || '';
-    redditTitleEl.value = drafts.reddit.title || '';
-    redditBodyEl.value = drafts.reddit.body || '';
+    const toText = (v) => (typeof v === 'string' ? v : (v && typeof v.text === 'string' ? v.text : ''));
+    const toReddit = (v) => ({
+      title: (v && typeof v.title === 'string') ? v.title : '',
+      body: (v && typeof v.body === 'string') ? v.body : ''
+    });
+
+    const twitterDraft = toText(drafts.twitter);
+    const linkedinDraft = toText(drafts.linkedin);
+    const redditDraft = toReddit(drafts.reddit);
+
+    twitterTextEl.value = twitterDraft;
+    linkedinTextEl.value = linkedinDraft;
+    redditTitleEl.value = redditDraft.title;
+    redditBodyEl.value = redditDraft.body;
 
     updateCounter(twitterTextEl, twitterCount, PLATFORM_LIMITS.twitter);
     updateCounter(linkedinTextEl, linkedinCount, PLATFORM_LIMITS.linkedin);

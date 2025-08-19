@@ -115,8 +115,27 @@ async function callOpenAICompatible(baseUrl, model, userPrompt, systemPrompt, ap
   const content = json?.choices?.[0]?.message?.content?.trim();
   if (!content) throw new Error('Empty completion');
 
+  // Try to parse JSON even if wrapped in code fences
+  const tryParseJson = (text) => {
+    try {
+      return JSON.parse(text);
+    } catch (_) {
+      const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+      if (fenceMatch) {
+        try { return JSON.parse(fenceMatch[1]); } catch (_) { /* ignore */ }
+      }
+      const braceMatch = text.match(/\{[\s\S]*\}/);
+      if (braceMatch) {
+        try { return JSON.parse(braceMatch[0]); } catch (_) { /* ignore */ }
+      }
+      return null;
+    }
+  };
+
   try {
-    const data = JSON.parse(content);
+    const parsed = tryParseJson(content);
+    if (!parsed) throw new Error('not json');
+    const data = parsed;
     const normalized = normalizeDrafts(data);
     // If reddit fields missing, derive from any text fallback
     if (!normalized.reddit.title && !normalized.reddit.body) {
@@ -250,11 +269,20 @@ export async function generateFromResearch(topic, researchItems, opts = {}) {
     `Create platform-optimized drafts from the topic and the recent sources. Use the sources to extract current angles, terms, and hooks. Avoid fabricating facts.\n` +
     `Topic: ${topic}\n` +
     `Sources (recent):\n${sourcesBlock}\n\n` +
-    `Return STRICT JSON with keys "twitter", "linkedin", "reddit" like before. Keep limits.`
+    'Output STRICT JSON with keys "twitter", "linkedin", "reddit".\n' +
+    '- twitter: { "text": string }\n' +
+    '- linkedin: { "text": string }\n' +
+    '- reddit: { "title": string, "body": string }\n' +
+    'Do not wrap the JSON in code fences. No extra commentary.'
   );
 
   try {
-    return await callOpenAICompatible(baseUrl, model, userPrompt, systemPrompt, apiKey);
+    const drafts = await callOpenAICompatible(baseUrl, model, userPrompt, systemPrompt, apiKey);
+    drafts.twitter.text = truncateToLimit(drafts.twitter.text, PLATFORM_LIMITS.twitter);
+    drafts.linkedin.text = truncateToLimit(drafts.linkedin.text, PLATFORM_LIMITS.linkedin);
+    drafts.reddit.title = truncateToLimit(drafts.reddit.title, PLATFORM_LIMITS.redditTitle);
+    drafts.reddit.body = truncateToLimit(drafts.reddit.body, PLATFORM_LIMITS.redditBody);
+    return drafts;
   } catch (_) {
     // Fallback to topic only
     return generatePlatformDrafts(topic, opts);
