@@ -66,7 +66,13 @@ function updateCounter(el, countEl, limit) {
   if (!el || !countEl) return;
   const len = ('value' in el ? (el.value || '') : (el.textContent || '')).length;
   countEl.textContent = `${len}/${limit}`;
-  countEl.style.color = len > limit ? '#dc2626' : '';
+  if (len > limit) {
+    countEl.style.color = '#dc2626';
+  } else if (len > Math.floor(limit * 0.9)) {
+    countEl.style.color = '#b45309';
+  } else {
+    countEl.style.color = '';
+  }
 }
 
 function updateRedditCounts() {
@@ -74,7 +80,13 @@ function updateRedditCounts() {
   const titleLen = (redditTitleEl.value || '').length;
   const bodyLen = (redditBodyEl.value || '').length;
   redditCounts.textContent = `title ${titleLen}/${PLATFORM_LIMITS.redditTitle} • body ${bodyLen}/${PLATFORM_LIMITS.redditBody}`;
-  redditCounts.style.color = (titleLen > PLATFORM_LIMITS.redditTitle || bodyLen > PLATFORM_LIMITS.redditBody) ? '#dc2626' : '';
+  if (titleLen > PLATFORM_LIMITS.redditTitle || bodyLen > PLATFORM_LIMITS.redditBody) {
+    redditCounts.style.color = '#dc2626';
+  } else if (titleLen > Math.floor(PLATFORM_LIMITS.redditTitle * 0.9) || bodyLen > Math.floor(PLATFORM_LIMITS.redditBody * 0.9)) {
+    redditCounts.style.color = '#b45309';
+  } else {
+    redditCounts.style.color = '';
+  }
 }
 
 async function getStoredModel() {
@@ -230,6 +242,10 @@ rewriteBtn.addEventListener('click', async () => {
 
     platformDrafts.classList.remove('hidden');
 
+    // initialize version stacks on first generate
+    setInitialVersions(drafts);
+    updateVersionButtons();
+
     await saveHistory({
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       timestamp: Date.now(),
@@ -302,6 +318,7 @@ function pushVersion(platform, value){
   const stack = versions[platform];
   stack.push(value); while (stack.length>10) stack.shift();
   versionIndex[platform] = stack.length-1;
+  updateVersionButtons();
 }
 function showVersion(platform, delta){
   const stack = versions[platform]; if(!stack.length) return;
@@ -310,6 +327,23 @@ function showVersion(platform, delta){
   if(platform==='twitter'){ twitterTextEl.value = v; updateCounter(twitterTextEl, twitterCount, PLATFORM_LIMITS.twitter); }
   else if(platform==='linkedin'){ linkedinTextEl.value = v; updateCounter(linkedinTextEl, linkedinCount, PLATFORM_LIMITS.linkedin); }
   else { redditTitleEl.value = v.title; redditBodyEl.value = v.body; updateRedditCounts(); }
+  updateVersionButtons();
+}
+
+function updateVersionButtons(){
+  const setState = (platform, prevBtn, nextBtn) => {
+    const stack = versions[platform];
+    const idx = versionIndex[platform];
+    const has = stack.length > 0;
+    if (!has) {
+      prevBtn.disabled = true; nextBtn.disabled = true; return;
+    }
+    prevBtn.disabled = idx <= 0;
+    nextBtn.disabled = idx >= stack.length - 1;
+  };
+  if (twitterPrev && twitterNext) setState('twitter', twitterPrev, twitterNext);
+  if (linkedinPrev && linkedinNext) setState('linkedin', linkedinPrev, linkedinNext);
+  if (redditPrev && redditNext) setState('reddit', redditPrev, redditNext);
 }
 
 // Refine handlers
@@ -444,5 +478,5 @@ if (toneSelect) toneSelect.addEventListener('change', () => { currentTone = tone
 
 function switchToCompose(){ composeView.classList.remove('hidden'); historyView.classList.add('hidden'); }
 function switchToHistory(){ composeView.classList.add('hidden'); historyView.classList.remove('hidden'); }
-if (tabCompose) tabCompose.addEventListener('click', switchToCompose);
-if (tabHistory) tabHistory.addEventListener('click', async () => { const history = await loadHistory(); renderHistory(history); switchToHistory(); });
+if (tabCompose) tabCompose.addEventListener('click', () => { switchToCompose(); tabCompose.setAttribute('aria-selected','true'); tabHistory.setAttribute('aria-selected','false'); });
+if (tabHistory) tabHistory.addEventListener('click', async () => { const history = await loadHistory(); renderHistory(history); switchToHistory(); tabHistory.setAttribute('aria-selected','true'); tabCompose.setAttribute('aria-selected','false'); });

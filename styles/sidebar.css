@@ -137,6 +137,22 @@ button.ghost {
   color: var(--fg);
 }
 
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.tabs .ghost[aria-selected="true"] {
+  background: var(--primary);
+  color: var(--primary-contrast);
+  border-color: var(--primary);
+}
+
 .card {
   margin-top: 12px;
   border: 1px solid var(--border);
