@@ -1,4 +1,4 @@
-import { fetchAvailableModels, generatePlatformDrafts, PLATFORM_LIMITS, refinePlatformDraft, generateFromResearch } from './services/ai.js';
+import { fetchAvailableModels, PLATFORM_LIMITS, refinePlatformDraft, generateFromResearch } from './services/ai.js';
 import { researchTopic } from './services/researcher.js';
 import { suggestCommunitiesAI } from './services/suggester.js';
 
